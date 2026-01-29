@@ -1,56 +1,225 @@
 import React, { useState, useEffect } from "react";
+import {
+  Box,
+  Typography,
+  IconButton,
+  Button,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Avatar,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+} from "@mui/material";
+import {
+  Menu as MenuIcon,
+  Edit,
+  Delete,
+} from "@mui/icons-material";
+import { Switch } from "@mui/material";
+import SearchBar from "../../Component/Common/SearchBar";
+import Swal from "sweetalert2";
+import 'sweetalert2/dist/sweetalert2.min.css';
 
 export default function BusinessPage({ token }) {
-  const [businessList, setBusinessList] = useState([]);
-  const [newBusiness, setNewBusiness] = useState({ name: "", type: "", owner_id: "" });
-  const [editBusiness, setEditBusiness] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [owners, setOwners] = useState([]);
+  const [businesses, setBusinesses] = useState([]);
+  const [searchBusiness, setSearchBusiness] = useState("");
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editBusinessModal, setEditBusinessModal] = useState(false);
+  const [selectedBusiness, setSelectedBusiness] = useState(null);
+  const [newBusiness, setNewBusiness] = useState({
+    name: "",
+    location: "",
+    ownerName: "",
+    ownerContact: "",
+    username: "",
+    password: "",
+    status: 1,
+    adminId: 1
+  });
+  const [editBusinessData, setEditBusinessData] = useState({
+    name: "",
+    location: "",
+    ownerName: "",
+    ownerContact: "",
+    username: "",
+    password: "",
+    status: 1,
+    adminId: 1
+  });
+  useEffect(() => {
+    lordBusinesses();
+  }, [token]);
 
-  const loadBusinesses = async () => {
+  const lordBusinesses = async () => {
     try {
-      setLoading(true);
       const response = await fetch("http://localhost:8080/api/v1/business", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!response.ok) throw new Error(`HTTP ${response.status} - ${response.statusText}`);
       const data = await response.json();
-      setBusinessList(data);
+      setBusinesses(data);
     } catch (err) {
-      console.error("Error fetching businesses:", err);
-      alert("Error fetching businesses");
-    } finally {
-      setLoading(false);
+      console.error("Error loading businesses", err);
     }
   };
 
-  const loadOwners = async () => {
+  const filteredBusinesses = businesses.filter((business) => {
+    const query = searchBusiness.toLowerCase();
+
+    return (
+      business.name?.toLowerCase().includes(query) ||
+      business.ownerName?.toLowerCase().includes(query) ||
+      business.location?.toLowerCase().includes(query) ||
+      business.username?.toLowerCase().includes(query) ||
+      business.ownerContact?.toLowerCase().includes(query)
+    );
+  });
+
+
+  const toggleBusinessStatus = async (biz) => {
+    const newStatus = biz.status === 1 ? 0 : 1;
+
+    setBusinesses((prev) =>
+      prev.map((b) =>
+        b.id === biz.id ? { ...b, status: newStatus } : b
+      )
+    );
+
     try {
-      const res = await fetch("http://localhost:8080/api/v1/business/biz/bizowner", {
-        headers: { Authorization: `Bearer ${token}` },
+      const response = await fetch(
+        `http://localhost:8080/api/v1/business/status/${biz.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ status: newStatus }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to update status");
+      }
+    } catch (error) {
+      console.error("Status update failed:", error);
+
+      setBusinesses((prev) =>
+        prev.map((b) =>
+          b.id === biz.id ? { ...b, status: biz.status } : b
+        )
+      );
+
+      Swal.fire({
+        position: "top-end",
+        icon: "error",
+        title: "failed to update status",
+        showConfirmButton: false,
+        timer: 1500
       });
-      if (!res.ok) throw new Error("Failed to fetch owners");
-      const data = await res.json();
-      setOwners(data);
+    }
+  };
+
+  const deleteBusiness = async (id) => {
+
+    const result = await Swal.fire({
+      title: "Delete Business?",
+      text: "This action cannot be undone.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#8b29f4",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Yes, delete it",
+      cancelButtonText: "Cancel",
+      reverseButtons: true,
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const response = await fetch(
+        `http://localhost:8080/api/v1/business/${id}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      lordBusinesses();
+    } catch (error) {
+      console.error("Error deleting business", error);
+      Swal.fire({
+        position: "top-end",
+        icon: "error",
+        title: "failed to delete business",
+        showConfirmButton: false,
+        timer: 1500
+      });
+    }
+  };
+
+  const openEditModal = (biz) => {
+    setSelectedBusiness(biz);
+    setEditBusinessData({
+      name: biz.name, 
+      ownerName: biz.ownerName,
+      ownerContact: biz.ownerContact,
+      location: biz.location,
+      username: biz.username,
+      password: biz.password,
+      status: 1,
+    });
+    setEditBusinessModal(true);
+  };
+
+  const submitEditBusiness = async () => {
+    if (!selectedBusiness) return;
+
+    try {
+      const res = await fetch(
+        `http://localhost:8080/api/v1/business/${selectedBusiness.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(editBusinessData),
+        }
+      );
+      if (!res.ok) throw new Error("Failed to update business");
+
+      setEditBusinessModal(false);
+      setSelectedBusiness(null);
+      lordBusinesses();
+      Swal.fire({
+        position: "top-end",
+        icon: "success",
+        title: "business updated successfully",
+        showConfirmButton: false,
+        timer: 1500
+      });
     } catch (err) {
       console.error(err);
-      alert("Error fetching owners");
+      Swal.fire({
+        position: "top-end",
+        icon: "error",
+        title: "failed to update business",
+        showConfirmButton: false,
+        timer: 1500
+      });
     }
   };
 
-  useEffect(() => {
-    loadBusinesses();
-    loadOwners();
-  }, []);
-
-  const handleAddBusiness = async () => {
-    if (!newBusiness.name || !newBusiness.type || !newBusiness.owner_id) {
-      alert("Please fill all fields");
-      return;
-    }
-
+  const submitAddBusiness = async () => {
     try {
-      const response = await fetch("http://localhost:8080/api/v1/business", {
+      const res = await fetch("http://localhost:8080/api/v1/business", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -58,188 +227,242 @@ export default function BusinessPage({ token }) {
         },
         body: JSON.stringify(newBusiness),
       });
-      if (!response.ok) throw new Error("Failed to add business");
 
-      setNewBusiness({ name: "", type: "", owner_id: "" });
-      loadBusinesses();
-      alert("Business added successfully!");
-    } catch (err) {
-      console.error("Error adding business:", err);
-      alert("Error adding business: " + err.message);
-    }
-  };
+      if (!res.ok) throw new Error("Failed to add business");
 
-  const handleUpdateBusiness = async () => {
-    if (!editBusiness.name || !editBusiness.type || !editBusiness.owner_id) {
-      alert("Please fill all fields");
-      return;
-    }
-
-    try {
-      const response = await fetch(`http://localhost:8080/api/v1/business/${editBusiness.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name: editBusiness.name,
-          type: editBusiness.type,
-          owner_id: editBusiness.owner_id,
-        }),
+      setShowAddModal(false);
+      setNewBusiness({
+        name: "",
+        ownerContact: "",
+        location: "",
       });
-      if (!response.ok) throw new Error("Failed to update business");
-
-      setEditBusiness(null);
-      loadBusinesses();
-      alert("Business updated successfully!");
-    } catch (err) {
-      console.error("Error updating business:", err);
-      alert("Error updating business: " + err.message);
-    }
-  };
-
-  const handleDeleteBusiness = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this business?")) return;
-    try {
-      const response = await fetch(`http://localhost:8080/api/v1/business/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+      lordBusinesses();
+      Swal.fire({
+        position: "top-end",
+        icon: "success",
+        title: "Business Saved",
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true,
+        toast: true,
+        didOpen: (toast) => {
+          toast.addEventListener('mouseenter', Swal.stopTimer);
+          toast.addEventListener('mouseleave', Swal.resumeTimer);
+        }
       });
-      if (!response.ok) throw new Error("Failed to delete business");
-      loadBusinesses();
-      alert("Business deleted successfully!");
     } catch (err) {
-      console.error("Error deleting business:", err);
-      alert("Error deleting business: " + err.message);
+      console.error(err);
+      Swal.fire({
+        position: "top-end",
+        icon: "error",
+        title: "failed to add business",
+        showConfirmButton: false,
+        timer: 1500
+      });
     }
   };
 
   return (
     <div className="flex min-h-screen bg-gray-100">
-      <main className="flex-1 p-8 space-y-6">
-        <h2 className="text-2xl font-bold mb-4">Business Management</h2>
+      <main className="flex-1 p-2">
+        <Box
+          sx={{
+            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            color: "#fff",
+            p: 2,
+            borderRadius: 2,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
 
-        <div className="bg-white p-4 rounded-lg shadow-md space-y-2">
-          <h3 className="font-semibold mb-2">{editBusiness ? "Edit Business" : "Add New Business"}</h3>
-          <div className="flex gap-2 flex-wrap">
-            <input
-              type="text"
-              placeholder="Name"
-              value={editBusiness ? editBusiness.name : newBusiness.name}
-              onChange={(e) =>
-                editBusiness
-                  ? setEditBusiness({ ...editBusiness, name: e.target.value })
-                  : setNewBusiness({ ...newBusiness, name: e.target.value })
-              }
-              className="border p-2 rounded flex-1"
-            />
-            <input
-              type="text"
-              placeholder="Type"
-              value={editBusiness ? editBusiness.type : newBusiness.type}
-              onChange={(e) =>
-                editBusiness
-                  ? setEditBusiness({ ...editBusiness, type: e.target.value })
-                  : setNewBusiness({ ...newBusiness, type: e.target.value })
-              }
-              className="border p-2 rounded flex-1"
-            />
-            <select
-              value={editBusiness ? editBusiness.owner_id : newBusiness.owner_id}
-              onChange={(e) =>
-                editBusiness
-                  ? setEditBusiness({ ...editBusiness, owner_id: parseInt(e.target.value) })
-                  : setNewBusiness({ ...newBusiness, owner_id: parseInt(e.target.value) })
-              }
-              className="border p-2 rounded flex-1"
-            >
-              <option value="">Select Owner Nic Number</option>
+          <Typography variant="h6">Welcome To Business Management !</Typography>
 
-              {owners.map((owner) => (
-                <option key={owner.id} value={owner.id}>
-                  {owner.nicNumber}
-                </option>
-              ))}
-            </select>
+          <Box sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 2 }}>
+            <IconButton color="inherit">
+            </IconButton>
+            <Avatar sx={{ bgcolor: "rgba(255,255,255,0.3)", color: "#fff" }}>SB</Avatar>
+          </Box>
+        </Box>
 
-            {editBusiness ? (
-              <>
-                <button
-                  onClick={handleUpdateBusiness}
-                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-                >
-                  Update
-                </button>
-                <button
-                  onClick={() => setEditBusiness(null)}
-                  className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500"
-                >
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={handleAddBusiness}
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-              >
-                Add
-              </button>
-            )}
-          </div>
-        </div>
+        <Box sx={{ p: 4 }}>
+          <Button variant="contained" onClick={() => setShowAddModal(true)}
+            sx={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", fontWeight: 'bold', position: 'absolute', top: 120, right: 40 }}>
+            + Add Business
+          </Button>
+        </Box>
 
-        <div className="bg-white p-4 rounded-lg shadow-md overflow-x-auto">
-          {loading ? (
-            <p>Loading...</p>
-          ) : businessList.length === 0 ? (
-            <p>No businesses found.</p>
-          ) : (
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-gray-200">
-                  <th className="p-2 border">ID</th>
-                  <th className="p-2 border">Name</th>
-                  <th className="p-2 border">Type</th>
-                  <th className="p-2 border">Owner ID</th>
-                  <th className="p-2 border">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {businessList.map((biz) => (
-                  <tr key={biz.id} className="hover:bg-gray-100 transition-all">
-                    <td className="border p-2">{biz.id}</td>
-                    <td className="border p-2">{biz.name}</td>
-                    <td className="border p-2">{biz.type}</td>
-                    <td className="border p-2">{biz.owner_id}</td>
-                    <td className="border p-2 flex gap-2">
-                      <button
-                        onClick={() =>
-                          setEditBusiness({
-                            id: biz.id,
-                            name: biz.name,
-                            type: biz.type,
-                            owner_id: biz.owner_id,
-                          })
-                        }
-                        className="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteBusiness(biz.id)}
-                        className="bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
+        <SearchBar
+          value={searchBusiness}
+          onChange={setSearchBusiness}
+          placeholder="Search business..."
+        />
+
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead sx={{ bgcolor: "#8b29f4ff" }}>
+              <TableRow>
+                {["Business", "Contact", "Location", "Joined", "Status", "Actions"].map(h => (
+                  <TableCell key={h} sx={{ color: "#fff", fontWeight: 600 }}>
+                    {h}
+                  </TableCell>
                 ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+              {filteredBusinesses.map(b => (
+                <TableRow key={b.id} hover>
+                  <TableCell>{b.name}</TableCell>
+                  <TableCell>{b.ownerContact}</TableCell>
+                  <TableCell>{b.location}</TableCell>
+                  <TableCell>{b.regDate}</TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={b.status === 1}
+                      onChange={() => toggleBusinessStatus(b)}
+                      color="success"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <IconButton
+                      color="primary"
+                      onClick={() => openEditModal(b)}>
+                      <Edit />
+                    </IconButton>
+                    <IconButton
+                      color="error"
+                      onClick={() => deleteBusiness(b.id)}>
+                      <Delete />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <Dialog open={editBusinessModal} onClose={() => setEditBusinessModal(false)}>
+          <DialogTitle sx={{ bgcolor: "#8b29f4ff", color: "#fff" }}>Edit Business</DialogTitle>
+          <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400 }}>
+            <TextField
+              label="Business Name"
+              value={editBusinessData.name}
+              sx={{ mt: 1 }}
+              onChange={(e) =>
+                setEditBusinessData((prev) => ({ ...prev, name: e.target.value }))
+              }
+            />
+            <TextField
+              label="Owner Contact"
+              value={editBusinessData.ownerContact}
+              onChange={(e) =>
+                setEditBusinessData((prev) => ({ ...prev, ownerContact: e.target.value }))
+              }
+            />
+            <TextField
+              label="Location"
+              value={editBusinessData.location}
+              onChange={(e) =>
+                setEditBusinessData((prev) => ({ ...prev, location: e.target.value }))
+              }
+            />
+            <TextField
+              label="Owner Name"
+              value={editBusinessData.ownerName}
+              onChange={(e) =>
+                setEditBusinessData((prev) => ({ ...prev, ownerName: e.target.value }))
+              }
+            />
+            <TextField
+              label="Username"
+              value={editBusinessData.username}
+              onChange={(e) =>
+                setEditBusinessData((prev) => ({ ...prev, username: e.target.value }))
+              }
+            />
+            <TextField
+              label="Password"
+              value={editBusinessData.password}
+              onChange={(e) =>
+                setEditBusinessData((prev) => ({ ...prev, password: e.target.value }))
+              }
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button sx={{ color: "#8b29f4ff" }} onClick={() => setEditBusinessModal(false)}>Cancel</Button>
+            <Button sx={{ bgcolor: "#8b29f4ff" }} variant="contained" onClick={submitEditBusiness}>Save</Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={showAddModal} onClose={() => setShowAddModal(false)}>
+          <DialogTitle sx={{ bgcolor: "#8b29f4ff", color: "#fff" }}>Add Business</DialogTitle>
+          <DialogContent
+            sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400 }}
+          >
+            <TextField
+              sx={{ mt: 1 }}
+              label="Business Name"
+              value={newBusiness.name}
+              onChange={(e) =>
+                setNewBusiness((prev) => ({ ...prev, name: e.target.value }))
+              }
+            />
+            <TextField
+              label="Owner Contact"
+              value={newBusiness.ownerContact}
+              onChange={(e) =>
+                setNewBusiness((prev) => ({
+                  ...prev,
+                  ownerContact: e.target.value,
+                }))
+              }
+            />
+            <TextField
+              label="Location"
+              value={newBusiness.location}
+              onChange={(e) =>
+                setNewBusiness((prev) => ({ ...prev, location: e.target.value }))
+              }
+            />
+            <TextField
+              label="ownerName"
+              value={newBusiness.ownerName}
+              onChange={(e) =>
+                setNewBusiness((prev) => ({ ...prev, ownerName: e.target.value }))
+              }
+            />
+            <TextField
+              label="username"
+              value={newBusiness.username}
+              onChange={(e) =>
+                setNewBusiness((prev) => ({ ...prev, username: e.target.value }))
+              }
+            />
+            <TextField
+              label="password"
+              value={newBusiness.password}
+              onChange={(e) =>
+                setNewBusiness((prev) => ({ ...prev, password: e.target.value }))
+              }
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button sx={{ color: "#8b29f4ff" }} onClick={() => setShowAddModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              sx={{ bgcolor: "#8b29f4ff" }}
+              variant="contained"
+              onClick={submitAddBusiness}
+            >
+              Save
+            </Button>
+          </DialogActions>
+        </Dialog>
+
       </main>
-    </div>
+    </div >
   );
 }

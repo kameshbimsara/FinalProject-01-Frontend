@@ -1,14 +1,33 @@
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
-import React, { useState } from "react";
+import React, { useState } from 'react';
+import {
+  Box,
+  Button,
+  Typography,
+  Tab,
+  Tabs,
+} from '@mui/material';
+import {
+  Business,
+  AdminPanelSettings
+} from '@mui/icons-material';
+import axios, { Axios } from "axios";
+import img1 from "../../assets/img1.png";
 
 export default function LoginPage() {
+  const [tabValue, setTabValue] = useState("ADMIN");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("");
 
   const navigate = useNavigate();
+
+  const handleTabChange = (event, newValue) => {
+
+    setTabValue(newValue);
+    setFormData({ email: '', password: '' });
+  };
 
   const showToast = (icon, title) => {
     const Toast = Swal.mixin({
@@ -29,73 +48,132 @@ export default function LoginPage() {
     });
   };
 
+
   const handleLogin = async () => {
-    if (!role) {
-      alert("Please select Admin or Business Owner");
-      return;
-    }
-
-    const loginUrl =
-      role === "ADMIN"
-        ? "http://localhost:8080/api/v1/admin/login"
-        : "http://localhost:8080/api/v1/business/biz/bizowner/login";
-
-    try {
-      const response = await fetch(loginUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
-
-      if (!response.ok) {
-        alert("Invalid Username or Password");
-        return;
+    if (tabValue === "ADMIN") {
+      try {
+        const response = await axios.post("http://localhost:8080/api/v1/admin/login",
+          { username, password }
+        );
+        const data = response.data;
+        localStorage.setItem("token", data.token);
+        showToast("success", "Signed in successfully");
+        navigate("/admin-dashboard");
+      } catch (error) {
+        showToast("error", "Invalid Username or Password");
       }
+    } else {
+      try {
+        const response = await axios.post("http://localhost:8080/api/v1/business/login",
+          { username, password }
+        );
+        const data = response.data;
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("businessId", data.id);
+        localStorage.setItem("ownerName", data.ownerName);
 
-      const data = await response.json();
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("ownerId", data.ownerId)
-      localStorage.setItem("name", data.ownerName)
+        console.log("Login Response:", data); 
 
-      showToast("success", "Signed in successfully");
-
-      setTimeout(() => {
-        if (role === "ADMIN") {
-          navigate("/admin-dashboard");
-        } else {
-          navigate("/owner-dashboard");
-        }
-      }, 1000);
-    } catch (error) {
-      console.error(error);
-      showToast("error", "Login failed. Check your backend");
+        showToast("success", "Signed in successfully");
+        navigate("/owner-dashboard");
+      } catch (error) {
+        showToast("error", "Invalid Username or Password");
+      }
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-6">
-      <div className="w-full max-w-md bg-white shadow-lg rounded-xl p-8">
-        <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
-          Login
-        </h2>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        padding: 2,
+      }}
+    >
 
-        <div className="mb-6">
-          <label className="block text-gray-700 font-medium mb-1">
-            Login As
-          </label>
-          <select
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400 outline-none"
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-          >
-            <option value="">-- Select Role --</option>
-            <option value="ADMIN">Admin</option>
-            <option value="OWNER">Business Owner</option>
-          </select>
-        </div>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          mb: 2,
+        }}
+      >
+        <Box
+          component="img"
+          src={img1}
+          alt="SmartBiz"
+          sx={{
+            width: 205,
+            height: 105,
+            mb: 2,
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            borderRadius: '0 0 10px 0',
+          }}
+        />
+      </Box>
+
+      <Box
+        sx={{
+          backgroundColor: 'white',
+          borderRadius: 4,
+          boxShadow: 3,
+          maxWidth: 450,
+          width: "100%",
+          padding: 4,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+
+        <Box sx={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: 'white',
+          padding: 3,
+          textAlign: 'center',
+          margin: '-32px -32px 10px -32px',
+          borderRadius: '14px 14px 0px 0px',
+        }}>
+          <Typography variant="h6" fontWeight="bold" textAlign="center" color="white" borderRadius="20px">
+            Welcome To SmartBiz! Please Login Continue
+          </Typography>
+        </Box>
+
+
+        <Tabs
+          value={tabValue}
+          onChange={handleTabChange}
+          variant="fullWidth"
+          sx={{
+            borderBottom: 1,
+            borderColor: 'divider',
+            '& .MuiTab-root': {
+              textTransform: 'none',
+              fontSize: '1rem',
+              fontWeight: 500,
+            },
+          }}
+        >
+          <Tab
+            value="ADMIN"
+            icon={<AdminPanelSettings />}
+            iconPosition="start"
+            label="Admin Login"
+          />
+          <Tab
+            value="BUSINESS_OWNER"
+            icon={<Business />}
+            iconPosition="start"
+            label="Business Owner"
+          />
+        </Tabs>
 
         <div className="mb-4">
-          <label className="block text-gray-700 font-medium mb-1">
+          <label className="block text-gray-700 font-medium mb-1 mt-2">
             Email
           </label>
           <input
@@ -120,13 +198,19 @@ export default function LoginPage() {
           />
         </div>
 
-        <button
+        <Button
           onClick={handleLogin}
-          className="w-full bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition"
+          sx={{
+            width: "100%",
+            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            color: "white",
+            py: 2,
+            borderRadius: "lg",
+          }}
         >
           Login
-        </button>
-      </div>
-    </div>
+        </Button>
+      </Box>
+    </Box>
   );
 }

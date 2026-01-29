@@ -1,368 +1,385 @@
 import React, { useState, useEffect } from "react";
+import {
+  IconButton,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+} from "@mui/material";
+
+import {
+  Box,
+  Typography,
+  Button,
+  Stack,
+  Grid,
+} from "@mui/material";
+import {
+  InputAdornment,
+  Chip
+} from "@mui/material";
+
+import {
+  Search,
+  People,
+  Email,
+  Phone,
+  LocationOn,
+  CalendarMonth,
+  ShoppingBag,
+  Edit,
+  Delete
+} from "@mui/icons-material";
+import axios from "axios";
+import Swal from "sweetalert2";
+import 'sweetalert2/dist/sweetalert2.min.css';
 
 export default function CustomerPage({ token }) {
+
   const [customers, setCustomers] = useState([]);
-  const [businesses, setBusinesses] = useState([]);
-  const [ownerBusinesses, setOwnerBusinesses] = useState([]);
-  const [newCustomer, setNewCustomer] = useState({
-    name: "",
-    phone: "",
-    businessId: "",
-  });
-  const [editCustomer, setEditCustomer] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [searchName, setSearchName] = useState("");
-  const [searchBusinessId, setSearchBusinessId] = useState("");
-
-  const handleSearchCustomer = async () => {
-    try {
-      setLoading(true);
-
-      if (!searchBusinessId) {
-        alert("Please select a business to search");
-        return;
-      }
-
-      const res = await fetch(
-        `http://localhost:8080/api/customers/name/${searchName}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      if (!res.ok) throw new Error("Failed to fetch customer");
-
-      const data = await res.json();
-
-      if (data.businessId === parseInt(searchBusinessId)) {
-        setCustomers([data]);
-      } else {
-        setCustomers([]);
-      }
-
-    } catch (err) {
-      console.error(err);
-      alert("Error searching customer");
-    } finally {
-      setLoading(false);
-    }
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({ name: "", phone: "" });
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editCustomer, setEditCustomer] = useState({ id: null, name: "", phone: "" });
+  const openEditModal = (customer) => {
+    setEditCustomer({ id: customer.id, name: customer.name, phone: customer.phone });
+    setShowEditModal(true);
   };
 
-  const resetSearch = () => {
-    setSearchName("");
-    setSearchBusinessId("");
-    loadCustomers();
-  };
+  const ownerName = localStorage.getItem("ownerName");
+  const businessId = localStorage.getItem("businessId");
 
-  const loadOwnerBusinesses = async () => {
-    try {
-      const ownerId = localStorage.getItem("ownerId");
-      const res = await fetch(`http://localhost:8080/api/v1/business/owner/${ownerId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) throw new Error("Failed to fetch owner's businesses");
-      const data = await res.json();
-      setOwnerBusinesses(data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  useEffect(() => {
-    loadOwnerBusinesses();
-  }, []);
+  console.log("businessId:", businessId);
+  console.log("token:", token);
+  console.log("ownerName:", ownerName);
 
   const loadCustomers = async () => {
+    if (!businessId) return;
+
     try {
       setLoading(true);
-      const res = await fetch("http://localhost:8080/api/customers", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
 
-      if (!res.ok) throw new Error("Failed to fetch customers");
+      const res = await axios.get(
+        `http://localhost:8080/api/customers/business/${businessId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      const data = res.data;
+      setCustomers(Array.isArray(data) ? data : []);
 
-      const data = await res.json();
-      setCustomers(data);
     } catch (err) {
-      console.error(err);
-      alert("Error loading customers");
+      console.error("Failed to load customers", err);
+      setCustomers([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadBusinesses = async () => {
+  useEffect(() => {
+    if (token && businessId) {
+      loadCustomers();
+    }
+  }, [token, businessId]);
+
+  const filteredCustomers = customers.filter(c =>
+    c?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c?.phone?.includes(searchTerm)
+  );
+
+  const submitAddCustomer = async () => {
     try {
-      const res = await fetch("http://localhost:8080/api/v1/business", {
-        headers: { Authorization: `Bearer ${token}` },
+      await axios.post(
+        "http://localhost:8080/api/customers",
+        { ...newCustomer, businessId: parseInt(businessId) },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setShowAddModal(false);
+      setNewCustomer({ name: "", phone: "" });
+      loadCustomers();
+      Swal.fire({ position: "top-end", icon: "success", title: "Customer added", showConfirmButton: false, timer: 1500 });
+    } catch (err) {
+      console.error("Failed to add customer", err);
+      Swal.fire({ position: "top-end", icon: "error", title: "Failed to add customer", showConfirmButton: false, timer: 1500 });
+    }
+  };
+
+  const submitEditCustomer = async () => {
+    try {
+      await axios.put(
+        `http://localhost:8080/api/customers/${editCustomer.id}`,
+        { name: editCustomer.name, phone: editCustomer.phone },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setShowEditModal(false);
+      setEditCustomer({ id: null, name: "", phone: "" });
+      loadCustomers();
+      Swal.fire({ position: "top-end", icon: "success", title: "Customer updated", showConfirmButton: false, timer: 1500 });
+    } catch (err) {
+      console.error("Failed to update customer", err);
+      Swal.fire({ position: "top-end", icon: "error", title: "Failed to update customer", showConfirmButton: false, timer: 1500 });
+    }
+  };
+
+
+  const deleteCustomer = async (id) => {
+    const result = await Swal.fire({
+      title: "Delete Customer?",
+      text: "This action cannot be undone.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#8b29f4",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Yes, delete it",
+      cancelButtonText: "Cancel",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await axios.delete(`http://localhost:8080/api/customers/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
-
-      if (!res.ok) throw new Error("Failed to fetch businesses");
-
-      const data = await res.json();
-      setBusinesses(data);
+      loadCustomers();
+      Swal.fire({ position: "top-end", icon: "success", title: "Customer deleted", showConfirmButton: false, timer: 1500 });
     } catch (err) {
       console.error(err);
-    }
-  };
-
-  useEffect(() => {
-    loadCustomers();
-    loadBusinesses();
-  }, []);
-
-  const handleAddCustomer = async () => {
-    if (!newCustomer.name || !newCustomer.phone || !newCustomer.businessId) {
-      alert("Please fill all fields");
-      return;
-    }
-
-    try {
-      const res = await fetch("http://localhost:8080/api/customers", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(newCustomer),
-      });
-
-      if (!res.ok) throw new Error("Failed to add customer");
-
-      setNewCustomer({ name: "", phone: "", businessId: "" });
-      loadCustomers();
-      alert("Customer added successfully!");
-    } catch (err) {
-      alert(err.message);
-    }
-  };
-
-  const handleUpdateCustomer = async () => {
-    if (!editCustomer.name || !editCustomer.phone || !editCustomer.businessId) {
-      alert("Please fill all fields");
-      return;
-    }
-
-    try {
-      const res = await fetch(
-        `http://localhost:8080/api/customers/${editCustomer.id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(editCustomer),
-        }
-      );
-
-      if (!res.ok) throw new Error("Failed to update customer");
-
-      setEditCustomer(null);
-      loadCustomers();
-      alert("Customer updated successfully!");
-    } catch (err) {
-      alert(err.message);
-    }
-  };
-
-  const handleDeleteCustomer = async (id) => {
-    if (!window.confirm("Are you sure?")) return;
-
-    try {
-      const res = await fetch(`http://localhost:8080/api/customers/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) throw new Error("Failed to delete customer");
-
-      loadCustomers();
-      alert("Customer deleted!");
-    } catch (err) {
-      alert(err.message);
+      Swal.fire({ position: "top-end", icon: "error", title: "Failed to delete customer", showConfirmButton: false, timer: 1500 });
     }
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
-      <main className="flex-1 p-8 space-y-6">
-        <h2 className="text-2xl font-bold mb-4">Customer Management</h2>
+    <Box>
+      <Box
+        sx={{
+          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          color: "#fff",
+          p: 2,
+          borderRadius: 2,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
 
-        <div className="bg-white p-4 rounded-lg shadow-md space-y-2">
-          <h3 className="font-semibold mb-2">
-            {editCustomer ? "Edit Customer" : "Add New Customer"}
-          </h3>
+        <Typography variant="h6">Welcome To My Customers Managemant !</Typography>
 
-          <div className="flex gap-2 flex-wrap">
-
-            <select
-              value={
-                editCustomer ? editCustomer.businessId : newCustomer.businessId
-              }
-              onChange={(e) =>
-                editCustomer
-                  ? setEditCustomer({
-                    ...editCustomer,
-                    businessId: Number(e.target.value),
-                  })
-                  : setNewCustomer({
-                    ...newCustomer,
-                    businessId: Number(e.target.value),
-                  })
-              }
-              className="border p-2 rounded flex-1"
-            >
-              <option value="">Select Business</option>
-              {ownerBusinesses.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-
-            <input
-              type="text"
-              placeholder="Customer Name"
-              value={editCustomer ? editCustomer.name : newCustomer.name}
-              onChange={(e) =>
-                editCustomer
-                  ? setEditCustomer({ ...editCustomer, name: e.target.value })
-                  : setNewCustomer({ ...newCustomer, name: e.target.value })
-              }
-              className="border p-2 rounded flex-1"
+        <Box sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 2 }}>
+          <IconButton color="inherit">
+          </IconButton>
+          <Grid item>
+            <Chip
+              icon={<People />}
+              label={`${customers.length} Customers`}
+              color="secondary"
             />
+          </Grid>
+        </Box>
+      </Box>
 
-            <input
-              type="text"
-              placeholder="Phone"
-              value={editCustomer ? editCustomer.phone : newCustomer.phone}
-              onChange={(e) =>
-                editCustomer
-                  ? setEditCustomer({ ...editCustomer, phone: e.target.value })
-                  : setNewCustomer({ ...newCustomer, phone: e.target.value })
-              }
-              className="border p-2 rounded flex-1"
-            />
+      <Box sx={{ p: 4 }}>
+        <Button variant="contained" onClick={() => setShowAddModal(true)}
+          sx={{ background: "#8b29f4ff", fontWeight: 'bold', position: 'absolute', top: 120, right: 40 }}>
+          + Add Customer
+        </Button>
+      </Box>
 
-            {editCustomer ? (
-              <>
-                <button
-                  onClick={handleUpdateCustomer}
-                  className="bg-green-600 text-white px-4 py-2 rounded"
-                >
-                  Update
-                </button>
-                <button
-                  onClick={() => setEditCustomer(null)}
-                  className="bg-gray-500 text-white px-4 py-2 rounded"
-                >
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={handleAddCustomer}
-                className="bg-blue-600 text-white px-4 py-2 rounded"
-              >
-                Add
-              </button>
-            )}
-          </div>
-        </div>
 
-        <div className="bg-white p-4 rounded-lg shadow-md space-y-2">
-          <h3 className="font-semibold mb-2">Search Customer</h3>
+      <Dialog open={showAddModal} onClose={() => setShowAddModal(false)}>
+        <DialogTitle sx={{ bgcolor: "#8b29f4ff", color: "#fff" }}>Add Customer</DialogTitle>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400 }}>
+          <TextField label="Name" value={newCustomer.name} onChange={e => setNewCustomer(prev => ({ ...prev, name: e.target.value }))} />
+          <TextField label="Phone" value={newCustomer.phone} onChange={e => setNewCustomer(prev => ({ ...prev, phone: e.target.value }))} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowAddModal(false)} sx={{ color: "#8b29f4ff" }}>Cancel</Button>
+          <Button variant="contained" sx={{ bgcolor: "#8b29f4ff" }} onClick={submitAddCustomer}>Save</Button>
+        </DialogActions>
+      </Dialog>
 
-          <div className="flex gap-2 flex-wrap">
+      <Dialog open={showEditModal} onClose={() => setShowEditModal(false)}>
+        <DialogTitle sx={{ bgcolor: "#8b29f4ff", color: "#fff" }}>Edit Customer</DialogTitle>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400 }}>
+          <TextField
+            sx={{ mt: 2 }}
+            label="Name"
+            value={editCustomer.name}
+            onChange={e => setEditCustomer(prev => ({ ...prev, name: e.target.value }))}
+          />
+          <TextField
+            label="Phone"
+            value={editCustomer.phone}
+            onChange={e => setEditCustomer(prev => ({ ...prev, phone: e.target.value }))}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowEditModal(false)} sx={{ color: "#8b29f4ff" }}>Cancel</Button>
+          <Button variant="contained" sx={{ bgcolor: "#8b29f4ff" }} onClick={submitEditCustomer}>Save</Button>
+        </DialogActions>
+      </Dialog>
 
-            <select
-              value={searchBusinessId}
-              onChange={(e) => setSearchBusinessId(Number(e.target.value))}
-              className="border p-2 rounded flex-1"
-            >
-              <option value="">Select Business</option>
-              {ownerBusinesses.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+      <Box sx={{ minHeight: "100vh", bgcolor: "#f9fafb" }}>
 
-            <input
-              type="text"
-              placeholder="Search Name"
-              value={searchName}
-              onChange={(e) => setSearchName(e.target.value)}
-              className="border p-2 rounded flex-1"
-            />
+        <Box sx={{ maxWidth: 1200, mx: "auto", px: 2, mt: 4 }}>
+          <TextField
+            fullWidth
+            placeholder="Search customers by name or phone..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search />
+                </InputAdornment>
+              )
+            }}
+            sx={{ mb: 3 }}
+          />
 
-            <button
-              onClick={handleSearchCustomer}
-              className="bg-purple-600 text-white px-4 py-2 rounded"
-            >
-              Search
-            </button>
-
-            <button
-              onClick={resetSearch}
-              className="bg-gray-600 text-white px-4 py-2 rounded"
-            >
-              Reset
-            </button>
-
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-lg shadow-md overflow-x-auto">
-          {loading ? (
-            <p>Loading...</p>
-          ) : customers.length === 0 ? (
-            <p>No customers found.</p>
+          {filteredCustomers.length > 0 ? (
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead sx={{ bgcolor: "#8b29f4ff" }}>
+                  <TableRow>
+                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}><b>Name</b></TableCell>
+                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}><b>Phone</b></TableCell>
+                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}><b>Action</b></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredCustomers.map(customer => (
+                    <TableRow
+                      key={customer.id}
+                      hover
+                      sx={{ cursor: "pointer" }}
+                      onClick={() => setSelectedCustomer(customer)}
+                    >
+                      <TableCell>{customer.name}</TableCell>
+                      <TableCell>{customer.phone}</TableCell>
+                      <TableCell>
+                        <IconButton
+                          color="primary"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditModal(customer);
+                          }}
+                        >
+                          <Edit />
+                        </IconButton>
+                        <IconButton
+                          color="error"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteCustomer(customer.id);
+                          }}
+                        >
+                          <Delete />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
           ) : (
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-gray-200">
-                  <th className="p-2 border">ID</th>
-                  <th className="p-2 border">Name</th>
-                  <th className="p-2 border">Phone</th>
-                  <th className="p-2 border">Business Name</th>
-                  <th className="p-2 border">Actions</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {customers.map((c) => (
-                  <tr key={c.id} className="hover:bg-gray-100">
-                    <td className="border p-2">{c.id}</td>
-                    <td className="border p-2">{c.name}</td>
-                    <td className="border p-2">{c.phone}</td>
-                    <td className="border p-2">{ownerBusinesses.find(b => b.id === c.businessId)?.name || "Unknown"}</td>
-
-
-                    <td className="border p-2 flex gap-2">
-                      <button
-                        onClick={() => setEditCustomer(c)}
-                        className="bg-yellow-500 text-white px-3 py-1 rounded"
-                      >
-                        Edit
-                      </button>
-
-                      <button
-                        onClick={() => handleDeleteCustomer(c.id)}
-                        className="bg-red-600 text-white px-3 py-1 rounded"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <Paper sx={{ p: 6, textAlign: "center" }}>
+              <People sx={{ fontSize: 64, color: "text.disabled" }} />
+              <Typography variant="h6" mt={2}>
+                No customers found
+              </Typography>
+              <Typography color="text.secondary">
+                Try adjusting your search terms
+              </Typography>
+            </Paper>
           )}
-        </div>
-      </main>
-    </div>
+        </Box>
+
+        <Dialog
+          open={Boolean(selectedCustomer)}
+          onClose={() => setSelectedCustomer(null)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>Customer Details</DialogTitle>
+
+          <DialogContent dividers>
+            {selectedCustomer && (
+              <Grid container spacing={4}>
+                <Grid item xs={12} md={6}>
+                  <Typography fontWeight="bold" mb={2}>
+                    Personal Information
+                  </Typography>
+
+                  <InfoRow icon={<People />} label="Name" value={selectedCustomer.name} />
+                  <InfoRow icon={<Phone />} label="Phone" value={selectedCustomer.phone} />
+
+                  <InfoRow
+                    icon={<CalendarMonth />}
+                    label="Customer Since"
+                    value={
+                      selectedCustomer.createdAt
+                        ? new Date(selectedCustomer.createdAt).toLocaleDateString()
+                        : "N/A"
+                    }
+                  />
+
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <Typography fontWeight="bold" mb={2}>
+                    Purchase History
+                  </Typography>
+
+                  <InfoRow
+                    icon={<ShoppingBag />}
+                    label="Total Orders"
+                    value={`${selectedCustomer.totalOrders} orders`}
+                  />
+
+                  <Paper sx={{ p: 2, mt: 2, bgcolor: "#e3f2fd" }}>
+                    <Typography variant="caption">Total Spent</Typography>
+                    <Typography variant="h5" fontWeight="bold" color="primary">
+                      ${selectedCustomer.totalSpent.toLocaleString()}
+                    </Typography>
+                  </Paper>
+                </Grid>
+              </Grid>
+            )}
+          </DialogContent>
+
+          <DialogActions>
+            <Button onClick={() => setSelectedCustomer(null)}>
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </Box>
+    </Box>
   );
+
+  function InfoRow({ icon, label, value }) {
+    return (
+      <Stack direction="row" spacing={2} alignItems="center" mb={1}>
+        {icon}
+        <Box>
+          <Typography variant="caption" color="text.secondary">
+            {label}
+          </Typography>
+          <Typography variant="body1">{value}</Typography>
+        </Box>
+      </Stack>
+    );
+  }
+
 }

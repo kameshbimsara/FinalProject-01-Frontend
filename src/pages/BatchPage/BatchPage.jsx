@@ -1,399 +1,343 @@
 import React, { useState, useEffect } from "react";
+import axios from "axios";
+
+import {
+  Box,
+  Grid,
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  Button,
+  Divider,
+  MenuItem,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  IconButton,
+  Chip,
+} from "@mui/material";
+import Inventory2 from "@mui/icons-material/Inventory2";
 
 export default function BatchPage({ token }) {
-  const [batches, setBatches] = useState([]);
+  const [search, setSearch] = useState("");
   const [products, setProducts] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
+  const [batches, setBatches] = useState([]);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [selectedSupplier, setSelectedSupplier] = useState("");
 
-  const [newBatch, setNewBatch] = useState({
+  const businessId = localStorage.getItem("businessId");
+
+  const [batch, setBatch] = useState({
     manufactureDate: "",
     expireDate: "",
-    unitPrice: "",
     quantity: "",
-    productId: "",
-    supplierId: "",
+    unitPrice: ""
   });
+  const [searchMessage, setSearchMessage] = useState("");
 
-  const [editBatch, setEditBatch] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [searchProductId, setSearchProductId] = useState("");
-
-  const loadBatches = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch("http://localhost:8080/api/v1/batches", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to fetch batches");
-
-      const data = await res.json();
-      setBatches(data);
-    } catch (err) {
-      alert("Error loading batches");
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    loadProducts();
+    loadSuppliers();
+    loadBatches();
+  }, []);
 
   const loadProducts = async () => {
-    try {
-      const res = await fetch("http://localhost:8080/api/v1/products", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to fetch products");
-
-      const data = await res.json();
-      setProducts(data);
-    } catch (err) { }
+    const res = await axios.get("http://localhost:8080/api/v1/products", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    setProducts(res.data);
   };
 
   const loadSuppliers = async () => {
-    try {
-      const res = await fetch("http://localhost:8080/api/v1/bizsuppler", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to fetch suppliers");
+    const res = await axios.get("http://localhost:8080/api/v1/bizsuppler", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
 
-      const data = await res.json();
-      setSuppliers(data);
-    } catch (err) { }
+    const businessSuppliers = res.data.filter(
+      (s) => s.businessId === Number(businessId)
+    );
+
+    setSuppliers(businessSuppliers);
   };
 
-  useEffect(() => {
-    loadBatches();
-    loadProducts();
-    loadSuppliers();
-  }, []);
+  const loadBatches = async () => {
+    const res = await axios.get("http://localhost:8080/api/v1/batches", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const enrichedBatches = res.data.map(b => ({
+      ...b,
+      product: products.find(p => p.id === b.productId),
+      supplier: suppliers.find(s => s.id === b.supplierId),
+    }));
 
-  const handleAddBatch = async () => {
-    if (
-      !newBatch.manufactureDate ||
-      !newBatch.expireDate ||
-      !newBatch.unitPrice ||
-      !newBatch.quantity ||
-      !newBatch.productId ||
-      !newBatch.supplierId
-    ) {
-      alert("Please fill all fields");
+    setBatches(enrichedBatches);
+  };
+
+  const handleSearch = () => {
+    if (!search.trim()) {
+      setSelectedProduct(null);
       return;
     }
 
-    try {
-      const res = await fetch("http://localhost:8080/api/v1/batches", {
-        method: "POST",
+    const found = products.find(
+      (p) =>
+        p.name.toLowerCase().includes(search.toLowerCase()) &&
+        p.businessId === Number(businessId)
+    );
+
+    if (found) {
+      setSelectedProduct(found);
+      setSearchMessage("");
+    } else {
+      setSelectedProduct(null);
+      setSearchMessage("No product found for your business with this name");
+    }
+
+  };
+
+  const saveBatch = async () => {
+  const token = localStorage.getItem("token");
+  const businessId = localStorage.getItem("businessId");
+
+  if (!selectedProduct || !selectedSupplier) {
+    alert("Select product and supplier");
+    return;
+  }
+
+  try {
+    await axios.post(
+      "http://localhost:8080/api/v1/batches",
+      {
+        ...batch,
+        productId: selectedProduct.id,
+        supplierId: selectedSupplier,
+        businessId: Number(businessId)
+      },
+      {
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(newBatch),
-      });
+          "Content-Type": "application/json"
+        }
+      }
+    );
 
-      if (!res.ok) throw new Error("Failed to add batch");
+    await loadProducts();
+    await loadSuppliers();
+    await loadBatches();
 
-      setNewBatch({
-        manufactureDate: "",
-        expireDate: "",
-        unitPrice: "",
-        quantity: "",
-        productId: "",
-        supplierId: "",
-      });
+    alert("Batch saved successfully");
 
-      loadBatches();
-      alert("Batch added successfully!");
-    } catch (err) {
-      alert(err.message);
-    }
-  };
-
-  const handleUpdateBatch = async () => {
-    if (
-      !editBatch.manufactureDate ||
-      !editBatch.expireDate ||
-      !editBatch.unitPrice ||
-      !editBatch.quantity ||
-      !editBatch.productId ||
-      !editBatch.supplierId
-    ) {
-      alert("Please fill all fields");
-      return;
-    }
-
-    try {
-      const res = await fetch(`http://localhost:8080/api/v1/batches/${editBatch.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(editBatch),
-      });
-
-      if (!res.ok) throw new Error("Failed to update batch");
-
-      setEditBatch(null);
-      loadBatches();
-      alert("Batch updated successfully!");
-    } catch (err) {
-      alert(err.message);
-    }
-  };
-
-  const handleDeleteBatch = async (id) => {
-    if (!window.confirm("Are you sure?")) return;
-
-    try {
-      const res = await fetch(`http://localhost:8080/api/v1/batches/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) throw new Error("Failed to delete batch");
-
-      loadBatches();
-      alert("Batch deleted!");
-    } catch (err) {
-      alert(err.message);
-    }
-  };
-
-  const handleSearchBatch = async () => {
-    if (!searchProductId) {
-      alert("Please select a product to search");
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const res = await fetch(
-        `http://localhost:8080/api/v1/batches/product/${searchProductId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (!res.ok) throw new Error("Failed to search batches");
-
-      const data = await res.json();
-      setBatches(data);
-    } catch (err) {
-      alert("Error searching batches");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const resetSearch = () => {
-    setSearchProductId("");
-    loadBatches();
-  };
+    setSelectedSupplier("");
+    setBatch({
+      manufactureDate: "",
+      expireDate: "",
+      quantity: "",
+      unitPrice: ""
+    });
+  } catch (err) {
+    console.error(err);
+    alert(err.response?.data || "Error saving batch");
+  }
+};
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
-      <main className="flex-1 p-8 space-y-6">
-        <h2 className="text-2xl font-bold mb-4">Batch Management</h2>
+    <Box >
 
-        <div className="bg-white p-4 rounded-lg shadow-md space-y-2">
-          <h3 className="font-semibold mb-3">
-            {editBatch ? "Edit Batch" : "Add New Batch"}
-          </h3>
+      <Box
+        sx={{
+          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          color: "#fff",
+          p: 2,
+          borderRadius: 2,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
 
-          <div className="flex gap-2 flex-wrap">
-            <label className="mt-2">Manufacture Date</label>
-            <input
-              type="date"
-              value={editBatch ? editBatch.manufactureDate : newBatch.manufactureDate}
-              onChange={(e) =>
-                editBatch
-                  ? setEditBatch({ ...editBatch, manufactureDate: e.target.value })
-                  : setNewBatch({ ...newBatch, manufactureDate: e.target.value })
-              }
-              className="border p-2 rounded flex-1"
+        <Typography variant="h6">Welcome To My Product Managemant !</Typography>
+
+        <Box sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 2 }}>
+          <IconButton color="inherit">
+          </IconButton>
+          <Grid item>
+            <Chip
+              icon={<Inventory2 />}
+              label={`${products.length} Products`}
+              color="secondary"
             />
-            <label className="mt-2">Expire Date</label>
-            <input
-              type="date"
-              value={editBatch ? editBatch.expireDate : newBatch.expireDate}
-              onChange={(e) =>
-                editBatch
-                  ? setEditBatch({ ...editBatch, expireDate: e.target.value })
-                  : setNewBatch({ ...newBatch, expireDate: e.target.value })
-              }
-              className="border p-2 rounded flex-1"
-            />
+          </Grid>
+        </Box>
+      </Box>
 
-            <input
-              type="number"
-              placeholder="Unit Price"
-              value={editBatch ? editBatch.unitPrice : newBatch.unitPrice}
-              onChange={(e) =>
-                editBatch
-                  ? setEditBatch({ ...editBatch, unitPrice: e.target.value })
-                  : setNewBatch({ ...newBatch, unitPrice: e.target.value })
-              }
-              className="border p-2 rounded flex-1"
-            />
+      <Grid container spacing={3} sx={{mt:3}}>
+        <Grid item xs={12} md={6}>
+          <Card sx={{ height: "100%" }}>
+            <CardContent>
+              <Typography variant="h6">Search Product</Typography>
+              <Divider sx={{ mb: 2 }} />
 
-            <input
-              type="number"
-              placeholder="Quantity"
-              value={editBatch ? editBatch.quantity : newBatch.quantity}
-              onChange={(e) =>
-                editBatch
-                  ? setEditBatch({ ...editBatch, quantity: e.target.value })
-                  : setNewBatch({ ...newBatch, quantity: e.target.value })
-              }
-              className="border p-2 rounded flex-1"
-            />
+              <Box sx={{ display: "flex", gap: 1 }}>
 
-            <select
-              value={editBatch ? editBatch.productId : newBatch.productId}
-              onChange={(e) =>
-                editBatch
-                  ? setEditBatch({ ...editBatch, productId: Number(e.target.value) })
-                  : setNewBatch({ ...newBatch, productId: Number(e.target.value) })
-              }
-              className="border p-2 rounded flex-1"
-            >
-              <option value="">Select Product</option>
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={editBatch ? editBatch.supplierId : newBatch.supplierId}
-              onChange={(e) =>
-                editBatch
-                  ? setEditBatch({ ...editBatch, supplierId: Number(e.target.value) })
-                  : setNewBatch({ ...newBatch, supplierId: Number(e.target.value) })
-              }
-              className="border p-2 rounded flex-1"
-            >
-              <option value="">Select Supplier</option>
-              {suppliers.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.companyName}
-                </option>
-              ))}
-            </select>
-
-            {editBatch ? (
-              <>
-                <button
-                  onClick={handleUpdateBatch}
-                  className="bg-green-600 text-white px-4 py-2 rounded"
+                <TextField
+                  fullWidth
+                  label="Product name"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                <Button
+                  variant="contained"
+                  onClick={handleSearch}
+                  sx={{ minWidth: 100, height: 40 }}
                 >
-                  Update
-                </button>
-                <button
-                  onClick={() => setEditBatch(null)}
-                  className="bg-gray-500 text-white px-4 py-2 rounded"
-                >
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={handleAddBatch}
-                className="bg-blue-600 text-white px-4 py-2 rounded"
+                  Search
+                </Button>
+              </Box>
+
+
+              {selectedProduct && (
+                <Box mt={3}>
+                  <Info label="ID" value={selectedProduct.id} />
+                  <Info label="Name" value={selectedProduct.name} />
+                  <Info label="Brand" value={selectedProduct.brand} />
+                  <Info label="Description" value={selectedProduct.description} />
+                </Box>
+              )}
+              {searchMessage && (
+                <Typography color="error" sx={{ mt: 2 }}>
+                  {searchMessage}
+                </Typography>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} md={6}>
+          <Card sx={{ height: "100%"}}>
+            <CardContent>
+              <Typography variant="h6">Add Batch</Typography>
+              <Divider sx={{ mb: 2 }} />
+
+              <TextField
+                select
+                fullWidth
+                label="Select Supplier"
+                value={selectedSupplier}
+                onChange={(e) => setSelectedSupplier(e.target.value)}
+                sx={{ mb: 2 }}
               >
-                Add
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-lg shadow-md space-y-2">
-          <h3 className="font-semibold mb-2">Search Batch by Product</h3>
-
-          <div className="flex gap-2 flex-wrap">
-            <select
-              value={searchProductId}
-              onChange={(e) => setSearchProductId(Number(e.target.value))}
-              className="border p-2 rounded flex-1"
-            >
-              <option value="">Select Product</option>
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-
-            <button
-              onClick={handleSearchBatch}
-              className="bg-purple-600 text-white px-4 py-2 rounded"
-            >
-              Search
-            </button>
-
-            <button
-              onClick={resetSearch}
-              className="bg-gray-600 text-white px-4 py-2 rounded"
-            >
-              Reset
-            </button>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-lg shadow-md overflow-x-auto">
-          {loading ? (
-            <p>Loading...</p>
-          ) : batches.length === 0 ? (
-            <p>No batches found.</p>
-          ) : (
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-gray-200">
-                  <th className="p-2 border">ID</th>
-                  <th className="p-2 border">Manufacture Date</th>
-                  <th className="p-2 border">Expire Date</th>
-                  <th className="p-2 border">Unit Price</th>
-                  <th className="p-2 border">Quantity</th>
-                  <th className="p-2 border">Product</th>
-                  <th className="p-2 border">Supplier</th>
-                  <th className="p-2 border">Actions</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {batches.map((b) => (
-                  <tr key={b.id} className="hover:bg-gray-100">
-                    <td className="border p-2">{b.id}</td>
-                    <td className="border p-2">{b.manufactureDate}</td>
-                    <td className="border p-2">{b.expireDate}</td>
-                    <td className="border p-2">{b.unitPrice}</td>
-                    <td className="border p-2">{b.quantity}</td>
-                    <td className="border p-2">
-                      {products.find((p) => p.id === b.productId)?.name || "N/A"}
-                    </td>
-                    <td className="border p-2">
-                      {suppliers.find((s) => s.id === b.supplierId)?.companyName || "N/A"}
-                    </td>
-
-                    <td className="border p-2 flex gap-2">
-                      <button
-                        onClick={() => setEditBatch(b)}
-                        className="bg-yellow-500 text-white px-3 py-1 rounded"
-                      >
-                        Edit
-                      </button>
-
-                      <button
-                        onClick={() => handleDeleteBatch(b.id)}
-                        className="bg-red-600 text-white px-3 py-1 rounded"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
+                {suppliers.map((s) => (
+                  <MenuItem key={s.id} value={s.id}>
+                    {s.companyName}
+                  </MenuItem>
                 ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </main>
-    </div>
+              </TextField>
+              <TextField
+                type="date"
+                fullWidth
+                label="Manufacture Date"
+                InputLabelProps={{ shrink: true }}
+                value={batch.manufactureDate}
+                onChange={(e) => setBatch({ ...batch, manufactureDate: e.target.value })}
+                sx={{ mb: 2 }}
+              />
+
+              <TextField
+                type="date"
+                fullWidth
+                label="Expire Date"
+                InputLabelProps={{ shrink: true }}
+                value={batch.expireDate}
+                onChange={(e) => setBatch({ ...batch, expireDate: e.target.value })}
+                sx={{ mb: 2 }}
+              />
+
+              <TextField
+                type="number"
+                fullWidth
+                label="Quantity"
+                value={batch.quantity}
+                onChange={(e) => setBatch({ ...batch, quantity: e.target.value })}
+                sx={{ mb: 2 }}
+              />
+
+              <TextField
+                type="number"
+                fullWidth
+                label="Unit Price"
+                value={batch.unitPrice}
+                onChange={(e) => setBatch({ ...batch, unitPrice: e.target.value })}
+                sx={{ mb: 2 }}
+              />
+
+              <Button
+                variant="contained"
+                sx={{width:"40%"}}
+                onClick={saveBatch}
+              >
+                Add Batch
+              </Button>
+            </CardContent>
+          </Card>
+        </Grid>
+        </Grid>
+
+
+        <Grid item xs={12} sx={{mt:3}}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6">Batch List</Typography>
+              <Divider sx={{ mb: 2 }} />
+
+              <TableContainer component={Paper}>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>ID</TableCell>
+                      <TableCell>Product</TableCell>
+                      <TableCell>Supplier</TableCell>
+                      <TableCell>Manufacture</TableCell>
+                      <TableCell>Expire</TableCell>
+                      <TableCell>Qty</TableCell>
+                      <TableCell>Unit Price</TableCell>
+                    </TableRow>
+                  </TableHead>
+
+                  <TableBody>
+                    {batches.map((b) => (
+                      <TableRow key={b.id}>
+                        <TableCell>{b.id}</TableCell>
+                        <TableCell>{products.find(p => p.id === b.productId)?.name}</TableCell>
+                        <TableCell>{suppliers.find(s => s.id === b.supplierId)?.companyName}</TableCell>
+                        <TableCell>{b.manufactureDate}</TableCell>
+                        <TableCell>{b.expireDate}</TableCell>
+                        <TableCell>{b.quantity}</TableCell>
+                        <TableCell>{b.unitPrice}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </CardContent>
+          </Card>
+        </Grid>
+    </Box>
+  );
+}
+
+function Info({ label, value }) {
+  return (
+    <Box sx={{ mb: 1 }}>
+      <Typography variant="caption" color="primary">
+        {label}
+      </Typography>
+      <Typography>{value}</Typography>
+    </Box>
   );
 }

@@ -1,46 +1,75 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import OwnerBusiness from "../OwnerBusinessPage/OwnerBusinessPage";
 import CustomerPage from "../CustomerPage/CustomerPage";
 import OrdersPage from "../OdersPage/OrdersPage";
 import SuppliersPage from "../SuppliersPage/SuppliersPage";
 import BatchPage from "../BatchPage/BatchPage";
 import ProductPage from "../ProductPage/ProductPage";
 
+import {
+  Home,
+  Store,
+  People,
+  LocalShipping,
+  Inventory,
+  Category,
+  ReceiptLong,
+  Menu,
+  ChevronLeft,
+  Logout,
+} from "@mui/icons-material";
+
+import {
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+} from "@mui/material";
+
+import {
+  IconButton,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Avatar,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+} from "@mui/material";
+
+import {
+  Box,
+  Drawer,
+  Typography,
+  Button,
+  Stack,
+  Grid,
+  Card,
+  CardContent
+} from "@mui/material";
+
+const drawerWidth = 288;
+
 export default function OwnerDashboardPage() {
   const navigate = useNavigate();
   const [activePage, setActivePage] = useState("dashboard");
   const [token] = useState(localStorage.getItem("token"));
-  const [myBusinessList, setMyBusinessList] = useState([]);
   const [ownerName, setOwnerName] = useState("");
+  const [open, setOpen] = useState(true);
 
   const fetchOwnerName = () => {
     const name = localStorage.getItem("ownerName");
-    setOwnerName(name || "Owner");
+    setOwnerName(name);
   };
   useEffect(() => {
     fetchOwnerName();
   }, []);
-
-
-  const loadMyBusinessList = async () => {
-    try {
-      const ownerId = localStorage.getItem("ownerId");
-      const res = await fetch(`http://localhost:8080/api/v1/business/owner/${ownerId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) throw new Error("Failed to fetch owner's businesses");
-      const data = await res.json();
-      setMyBusinessList(data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  useEffect(() => {
-    loadMyBusinessList();
-  }, [token]);
 
   useEffect(() => {
     if (!token) {
@@ -54,77 +83,103 @@ export default function OwnerDashboardPage() {
   };
 
   const menuItems = [
-    { key: "dashboard", label: "Dashboard" },
-    { key: "ownerBusiness", label: "My Business" },
-    { key: "customer", label: "Customers" },
-    { key: "suppliers", label: "Suppliers" },
-    { key: "product", label: "Product" },
-    { key: "batch", label: "Batch" },
-    { key: "orders", label: "Orders" },
+    { id: "dashboard", icon: <Home />, label: "Home" },
+    { id: "customer", icon: <People />, label: "Customers" },
+    { id: "suppliers", icon: <LocalShipping />, label: "Suppliers" },
+    { id: "product", icon: <Inventory />, label: "Products" },
+    { id: "batch", icon: <Category />, label: "Batch" },
+    { id: "orders", icon: <ReceiptLong />, label: "Orders" },
   ];
 
   return (
-    <div className="min-h-screen flex bg-gray-100">
+    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#f3f4f6" }}>
 
-      <aside className="w-72 bg-gradient-to-b from-green-800 to-green-600 text-white p-6 flex flex-col justify-between h-screen fixed shadow-lg">
-        <div>
-          <h2 className="text-2xl font-bold mb-8 text-center">Owner Panel</h2>
+      <Drawer
+        variant="permanent"
+        sx={{
+          width: open ? drawerWidth : 72,
+          "& .MuiDrawer-paper": {
+            width: open ? drawerWidth : 72,
+            background: "linear-gradient(135deg,#667eea,#764ba2)",
+            color: "#fff",
+            transition: "0.3s",
+            overflowX: "hidden",
+          },
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", p: 2 }}>
+          {open && <Typography variant="h6">SmartBiz</Typography>}
+          <IconButton
+            sx={{ color: "#fff", ml: "auto" }}
+            onClick={() => setOpen(!open)}
+          >
+            {open ? <ChevronLeft /> : <Menu />}
+          </IconButton>
+        </Box>
 
+        <List>
           {menuItems.map((item) => (
-            <button
-              key={item.key}
-              className={`w-full text-left px-5 py-3 mb-2 rounded-lg hover:bg-white hover:text-green-700 transition-all duration-300 ${activePage === item.key
-                ? "bg-white text-green-700 font-semibold"
-                : ""
-                }`}
-              onClick={() => setActivePage(item.key)}
+            <ListItemButton
+              key={item.id}
+              selected={activePage === item.id}
+              onClick={() => setActivePage(item.id)}
+              sx={{
+                mx: 1,
+                mb: 0.5,
+                borderRadius: 2,
+                "&.Mui-selected": {
+                  bgcolor: "rgba(255,255,255,0.25)",
+                },
+              }}
             >
-              {item.label}
-            </button>
+              <ListItemIcon sx={{ color: "#fff", minWidth: 40 }}>
+                {item.icon}
+              </ListItemIcon>
+              {open && <ListItemText primary={item.label} />}
+            </ListItemButton>
           ))}
-        </div>
+        </List>
 
-        <button
-          onClick={logout}
-          className="w-full px-5 py-3 mt-6 bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
-        >
-          Logout
-        </button>
-      </aside>
+        {open && (
+          <Box sx={{ mt: "auto", p: 2 }}>
+            <Button
+              fullWidth
+              startIcon={<Logout />}
+              sx={{ color: "#fff" }}
+              onClick={logout}
+            >
+              Logout
+            </Button>
+          </Box>
+        )}
+      </Drawer>
 
-      <div className="flex-1 ml-72 p-8">
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: 4
+        }}
+      >
 
         {activePage === "dashboard" && (
-          <div>
-            <h1 className="text-3xl font-bold mb-6">Welcome, {ownerName}</h1>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-all">
-                <h3 className="text-lg font-semibold mb-2">My Businesses</h3>
-                <p className="text-2xl font-bold text-green-600">{myBusinessList.length}</p>
-              </div>
+          <Typography variant="h4" fontWeight="bold" mb={4}>
+            Home Page
+          </Typography>
 
-              <div className="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-all">
-                <h3 className="text-lg font-semibold mb-2">Pending Orders</h3>
-                <p className="text-2xl font-bold text-yellow-600">0</p>
-              </div>
-            </div>
-          </div>
+
+
+
         )}
 
-        {activePage === "ownerBusiness" && token && <OwnerBusiness token={token} />}
-
         {activePage === "customer" && token && <CustomerPage token={token} />}
-
         {activePage === "suppliers" && token && <SuppliersPage token={token} />}
-
         {activePage === "product" && token && <ProductPage token={token} />}
-
         {activePage === "batch" && token && <BatchPage token={token} />}
-
         {activePage === "orders" && token && <OrdersPage token={token} />}
 
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }

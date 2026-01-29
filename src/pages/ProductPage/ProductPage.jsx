@@ -1,434 +1,220 @@
 import React, { useState, useEffect } from "react";
+import {
+  Box, Typography, Button, Table, TableBody, TableCell,
+  TableContainer, TableHead, TableRow, Paper, TextField,
+  IconButton, InputAdornment, Dialog, DialogTitle,
+  DialogContent, DialogActions, Grid, Chip
+} from "@mui/material";
+import { Search, Edit, Delete, Inventory2 } from "@mui/icons-material";
+import axios from "axios";
+import Swal from "sweetalert2";
+import 'sweetalert2/dist/sweetalert2.min.css';
 
 export default function ProductPage({ token }) {
   const [products, setProducts] = useState([]);
-  const [suppliers, setSuppliers] = useState([]);
-  const [businesses, setBusinesses] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newProduct, setNewProduct] = useState({ name: "", brand: "", description: "" });
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editProduct, setEditProduct] = useState({ id: null, name: "", brand: "", description: "" });
 
-  const [newProduct, setNewProduct] = useState({
-    name: "",
-    brand: "",
-    description: "",
-    quantity: "",
-    supplierId: "",
-    businessId: "",
-  });
-
-  const [editProduct, setEditProduct] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [searchProductName, setSearchProductName] = useState("");
-  const [searchBusinessId, setSearchBusinessId] = useState("");
+  const businessId = localStorage.getItem("businessId");
 
   const loadProducts = async () => {
+    if (!businessId) return;
     try {
-      setLoading(true);
-      const res = await fetch("http://localhost:8080/api/v1/products", {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await axios.get(`http://localhost:8080/api/v1/products`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
+      setProducts(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("Failed to load products", err);
+      setProducts([]);
+    }
+  };
 
-      if (!res.ok) throw new Error("Failed to fetch products");
+  useEffect(() => { loadProducts(); }, [token, businessId]);
 
-      const data = await res.json();
-      setProducts(data);
+  const filteredProducts = products.filter(p =>
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.description.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const submitAddProduct = async () => {
+    if (!newProduct.name || !newProduct.brand || !newProduct.description) {
+      return Swal.fire({ icon: "error", title: "Please fill all fields", timer: 1500, showConfirmButton: false });
+    }
+    try {
+      await axios.post(`http://localhost:8080/api/v1/products`, {
+        name: newProduct.name,
+        brand: newProduct.brand,
+        description: newProduct.description,
+        businessId: parseInt(businessId),
+      }, { headers: { Authorization: `Bearer ${token}` } });
+
+      setNewProduct({ name: "", brand: "", description: "" });
+      setShowAddModal(false);
+      loadProducts();
+      Swal.fire({ icon: "success", title: "Product added", timer: 1500, showConfirmButton: false });
+    } catch (err) {
+      console.error(err.response || err);
+      Swal.fire({ icon: "error", title: "Failed to add product", timer: 1500, showConfirmButton: false });
+    }
+  };
+
+  const submitEditProduct = async () => {
+    if (!editProduct.name || !editProduct.brand || !editProduct.description) {
+      return Swal.fire({ icon: "error", title: "Please fill all fields", timer: 1500, showConfirmButton: false });
+    }
+    try {
+      await axios.put(`http://localhost:8080/api/v1/products/${editProduct.id}`, editProduct, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setEditProduct({ id: null, name: "", brand: "", description: "" });
+      setShowEditModal(false);
+      loadProducts();
+      Swal.fire({ icon: "success", title: "Product updated", timer: 1500, showConfirmButton: false });
     } catch (err) {
       console.error(err);
-      alert("Error loading products");
-    } finally {
-      setLoading(false);
+      Swal.fire({ icon: "error", title: "Failed to update product", timer: 1500, showConfirmButton: false });
     }
   };
 
-  const loadSuppliers = async () => {
+  const deleteProduct = async (id) => {
+    const result = await Swal.fire({
+      title: "Delete Product?",
+      text: "This action cannot be undone.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#8b29f4",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Yes, delete it",
+      cancelButtonText: "Cancel",
+    });
+    if (!result.isConfirmed) return;
+
     try {
-      const res = await fetch("http://localhost:8080/api/v1/bizsuppler", {
-        headers: { Authorization: `Bearer ${token}` },
+      await axios.delete(`http://localhost:8080/api/v1/products/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
-
-      if (!res.ok) throw new Error("Failed to fetch suppliers");
-
-      const data = await res.json();
-      setSuppliers(data);
+      loadProducts();
+      Swal.fire({ icon: "success", title: "Product deleted", timer: 1500, showConfirmButton: false });
     } catch (err) {
       console.error(err);
+      Swal.fire({ icon: "error", title: "Failed to delete product", timer: 1500, showConfirmButton: false });
     }
   };
 
-  const loadBusinesses = async () => {
-    try {
-      const res = await fetch("http://localhost:8080/api/v1/business", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) throw new Error("Failed to fetch businesses");
-
-      const data = await res.json();
-      setBusinesses(data);
-    } catch (err) {
-      console.error(err);
-    }
+  const openEditModal = (product) => {
+    setEditProduct({ id: product.id, name: product.name, brand: product.brand, description: product.description });
+    setShowEditModal(true);
   };
-
-  useEffect(() => {
-    loadProducts();
-    loadSuppliers();
-    loadBusinesses();
-  }, []);
-
-  const handleAddProduct = async () => {
-    const { name, brand, description, quantity, supplierId, businessId } = newProduct;
-
-
-
-    if (!name || !brand || !description || !quantity || !supplierId || !businessId) {
-      alert("Please fill all fields");
-      console.log(newProduct);
-      return;
-    }
-
-    try {
-      const res = await fetch("http://localhost:8080/api/v1/products", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(newProduct),
-
-      });
-
-      if (!res.ok) throw new Error("Failed to add product");
-
-      setNewProduct({
-        name: "",
-        brand: "",
-        description: "",
-        quantity: "",
-        supplierId: "",
-        businessId: "",
-      });
-
-      loadProducts();
-      alert("Product added successfully!");
-    } catch (err) {
-      alert(err.message);
-    }
-  };
-
-  const handleUpdateProduct = async () => {
-    const { name, brand, description, quantity, supplierId, businessId } = editProduct;
-
-    if (!name || !brand || !description || !quantity || !supplierId || !businessId) {
-      alert("Please fill all fields");
-      return;
-    }
-
-    try {
-      const res = await fetch(
-        `http://localhost:8080/api/v1/products/${editProduct.id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(editProduct),
-        }
-      );
-
-      if (!res.ok) throw new Error("Failed to update product");
-
-      setEditProduct(null);
-      loadProducts();
-      alert("Product updated successfully!");
-    } catch (err) {
-      alert(err.message);
-    }
-  };
-
-  const handleDeleteProduct = async (id) => {
-    if (!window.confirm("Are you sure?")) return;
-
-    try {
-      const res = await fetch(`http://localhost:8080/api/v1/products/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) throw new Error("Failed to delete product");
-
-      loadProducts();
-      alert("Product deleted!");
-    } catch (err) {
-      alert(err.message);
-    }
-  };
-
-  const handleSearch = () => {
-    if (!searchBusinessId) {
-      alert("Select a business");
-      return;
-    }
-
-    const filtered = products.filter(
-      (p) =>
-        p.businessId === Number(searchBusinessId) &&
-        p.name.toLowerCase().includes(searchProductName.toLowerCase())
-    );
-
-    setProducts(filtered);
-  };
-
-  const resetSearch = () => {
-    setSearchProductName("");
-    setSearchBusinessId("");
-    loadProducts();
-  };
-
-  const getSupplierName = (id) =>
-    suppliers.find((s) => s.id === id)?.companyName || "Unknown";
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
-      <main className="flex-1 p-8 space-y-6">
-        <h2 className="text-2xl font-bold mb-4">Product Management</h2>
+    <Box>
 
-        <div className="bg-white p-4 rounded shadow-md space-y-2">
-          <h3 className="font-semibold">
-            {editProduct ? "Edit Product" : "Add New Product"}
-          </h3>
+      <Box
+        sx={{
+          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          color: "#fff",
+          p: 2,
+          borderRadius: 2,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
 
-          <div className="flex gap-2 flex-wrap">
-            <input
-              type="text"
-              placeholder="Product Name"
-              value={editProduct ? editProduct.name : newProduct.name}
-              onChange={(e) =>
-                editProduct
-                  ? setEditProduct({ ...editProduct, name: e.target.value })
-                  : setNewProduct({ ...newProduct, name: e.target.value })
-              }
-              className="border p-2 rounded flex-1"
+        <Typography variant="h6">Welcome To My Product Managemant !</Typography>
+
+        <Box sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 2 }}>
+          <IconButton color="inherit">
+          </IconButton>
+          <Grid item>
+            <Chip
+              icon={<Inventory2 />}
+              label={`${products.length} Products`}
+              color="secondary"
             />
+          </Grid>
+        </Box>
+      </Box>
 
-            <input
-              type="text"
-              placeholder="Brand"
-              value={editProduct ? editProduct.brand : newProduct.brand}
-              onChange={(e) =>
-                editProduct
-                  ? setEditProduct({ ...editProduct, brand: e.target.value })
-                  : setNewProduct({ ...newProduct, brand: e.target.value })
-              }
-              className="border p-2 rounded flex-1"
-            />
+      <Box sx={{ p: 4, position: "relative" }}>
+        <Button variant="contained" onClick={() => setShowAddModal(true)}
+          sx={{ background: "#8b29f4", fontWeight: "bold", position: "absolute", top:0, right: 0,mt:2 }}>
+          + Add Product
+        </Button>
+      </Box>
 
-            <input
-              type="number"
-              placeholder="Quantity"
-              value={editProduct ? editProduct.quantity : newProduct.quantity}
-              onChange={(e) =>
-                editProduct
-                  ? setEditProduct({
-                    ...editProduct,
-                    quantity: Number(e.target.value),
-                  })
-                  : setNewProduct({
-                    ...newProduct,
-                    quantity: Number(e.target.value),
-                  })
-              }
-              className="border p-2 rounded flex-1"
-            />
+      <TextField
+        fullWidth
+        placeholder="Search products by name, brand or description..."
+        value={searchTerm}
+        onChange={e => setSearchTerm(e.target.value)}
+        InputProps={{ startAdornment: <InputAdornment position="start"><Search /></InputAdornment> }}
+        sx={{ mb: 3}}
+      />
 
-            <select
-              value={editProduct ? editProduct.supplierId : newProduct.supplierId}
-              onChange={(e) =>
-                editProduct
-                  ? setEditProduct({
-                    ...editProduct,
-                    supplierId: Number(e.target.value),
-                  })
-                  : setNewProduct({
-                    ...newProduct,
-                    supplierId: Number(e.target.value),
-                  })
-              }
-              className="border p-2 rounded flex-1"
-            >
-              <option value="">Select Supplier</option>
-              {suppliers.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.companyName}
-                </option>
+      {filteredProducts.length > 0 ? (
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead sx={{ bgcolor: "#8b29f4ff" }}>
+              <TableRow>
+                <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Name</TableCell>
+                <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Brand</TableCell>
+                <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Description</TableCell>
+                <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Action</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredProducts.map(p => (
+                <TableRow key={p.id} hover>
+                  <TableCell>{p.name}</TableCell>
+                  <TableCell>{p.brand}</TableCell>
+                  <TableCell>{p.description}</TableCell>
+                  <TableCell>
+                    <IconButton color="primary" onClick={() => openEditModal(p)}><Edit /></IconButton>
+                    <IconButton color="error" onClick={() => deleteProduct(p.id)}><Delete /></IconButton>
+                  </TableCell>
+                </TableRow>
               ))}
-            </select>
+            </TableBody>
+          </Table>
+        </TableContainer>
+      ) : (
+        <Paper sx={{ p: 6, textAlign: "center" }}>
+          <Inventory2 sx={{ fontSize: 64, color: "text.disabled" }} />
+          <Typography>No products found</Typography>
+        </Paper>
+      )}
 
-            <select
-              value={editProduct ? editProduct.businessId : newProduct.businessId}
-              onChange={(e) =>
-                editProduct
-                  ? setEditProduct({
-                    ...editProduct,
-                    businessId: Number(e.target.value),
-                  })
-                  : setNewProduct({
-                    ...newProduct,
-                    businessId: Number(e.target.value),
-                  })
-              }
-              className="border p-2 rounded flex-1"
-            >
-              <option value="">Select Business</option>
-              {businesses.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+      <Dialog open={showAddModal} onClose={() => setShowAddModal(false)}>
+        <DialogTitle>Add Product</DialogTitle>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400 }}>
+          <TextField label="Name" value={newProduct.name} onChange={e => setNewProduct(prev => ({ ...prev, name: e.target.value }))} />
+          <TextField label="Brand" value={newProduct.brand} onChange={e => setNewProduct(prev => ({ ...prev, brand: e.target.value }))} />
+          <TextField label="Description" value={newProduct.description} onChange={e => setNewProduct(prev => ({ ...prev, description: e.target.value }))} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowAddModal(false)}>Cancel</Button>
+          <Button variant="contained" sx={{ bgcolor: "#8b29f4" }} onClick={submitAddProduct}>Save</Button>
+        </DialogActions>
+      </Dialog>
 
-            <input
-              type="text"
-              placeholder="Description"
-              value={
-                editProduct ? editProduct.description : newProduct.description
-              }
-              onChange={(e) =>
-                editProduct
-                  ? setEditProduct({
-                    ...editProduct,
-                    description: e.target.value,
-                  })
-                  : setNewProduct({
-                    ...newProduct,
-                    description: e.target.value,
-                  })
-              }
-              className="border p-2 rounded flex-1"
-            />
-
-            {editProduct ? (
-              <>
-                <button
-                  onClick={handleUpdateProduct}
-                  className="bg-green-600 text-white px-4 py-2 rounded"
-                >
-                  Update
-                </button>
-                <button
-                  onClick={() => setEditProduct(null)}
-                  className="bg-gray-600 text-white px-4 py-2 rounded"
-                >
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={handleAddProduct}
-                className="bg-blue-600 text-white px-4 py-2 rounded"
-              >
-                Add
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded shadow-md space-y-2">
-          <h3 className="font-semibold">Search Products</h3>
-
-          <div className="flex gap-2 flex-wrap">
-            <select
-              value={searchBusinessId}
-              onChange={(e) => setSearchBusinessId(Number(e.target.value))}
-              className="border p-2 rounded flex-1"
-            >
-              <option value="">Select Business</option>
-              {businesses.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-
-            <input
-              type="text"
-              placeholder="Product Name"
-              value={searchProductName}
-              onChange={(e) => setSearchProductName(e.target.value)}
-              className="border p-2 rounded flex-1"
-            />
-
-            <button
-              onClick={handleSearch}
-              className="bg-purple-600 text-white px-4 py-2 rounded"
-            >
-              Search
-            </button>
-
-            <button
-              onClick={resetSearch}
-              className="bg-gray-600 text-white px-4 py-2 rounded"
-            >
-              Reset
-            </button>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded shadow-md overflow-x-auto">
-          {loading ? (
-            <p>Loading...</p>
-          ) : products.length === 0 ? (
-            <p>No products found.</p>
-          ) : (
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-gray-200">
-                  <th className="border p-2">ID</th>
-                  <th className="border p-2">Name</th>
-                  <th className="border p-2">Brand</th>
-                  <th className="border p-2">Description</th>
-                  <th className="border p-2">Qty</th>
-                  <th className="border p-2">Supplier</th>
-                  <th className="border p-2">Business</th>
-                  <th className="border p-2">Actions</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {products.map((p) => (
-                  <tr key={p.id} className="hover:bg-gray-100">
-                    <td className="border p-2">{p.id}</td>
-                    <td className="border p-2">{p.name}</td>
-                    <td className="border p-2">{p.brand}</td>
-                    <td className="border p-2">{p.description}</td>
-                    <td className="border p-2">{p.quantity}</td>
-                    <td className="border p-2">{getSupplierName(p.supplierId)}</td>
-                    <td className="border p-2">
-                      {businesses.find((b) => b.id === p.businessId)?.name ||
-                        "Unknown"}
-                    </td>
-
-                    <td className="border p-2 flex gap-2">
-                      <button
-                        onClick={() => setEditProduct(p)}
-                        className="bg-yellow-500 text-white px-3 py-1 rounded"
-                      >
-                        Edit
-                      </button>
-
-                      <button
-                        onClick={() => handleDeleteProduct(p.id)}
-                        className="bg-red-600 text-white px-3 py-1 rounded"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </main>
-    </div>
+      <Dialog open={showEditModal} onClose={() => setShowEditModal(false)}>
+        <DialogTitle sx={{ bgcolor: "#8b29f4ff", color: "#fff" }}>Edit Product</DialogTitle>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400 }}>
+          <TextField sx={{mt:2}} label="Name" value={editProduct.name} onChange={e => setEditProduct(prev => ({ ...prev, name: e.target.value }))} />
+          <TextField label="Brand" value={editProduct.brand} onChange={e => setEditProduct(prev => ({ ...prev, brand: e.target.value }))} />
+          <TextField label="Description" value={editProduct.description} onChange={e => setEditProduct(prev => ({ ...prev, description: e.target.value }))} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowEditModal(false)}>Cancel</Button>
+          <Button variant="contained" sx={{ bgcolor: "#8b29f4" }} onClick={submitEditProduct}>Save</Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }
