@@ -26,7 +26,14 @@ export default function ProductPage({ token }) {
       const res = await axios.get(`http://localhost:8080/api/v1/products`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setProducts(Array.isArray(res.data) ? res.data : []);
+
+      const allProducts = Array.isArray(res.data) ? res.data : [];
+
+      const businessProducts = allProducts.filter(
+        (p) => p.businessId === Number(businessId)
+      );
+      setProducts(businessProducts);
+
     } catch (err) {
       console.error("Failed to load products", err);
       setProducts([]);
@@ -143,7 +150,7 @@ export default function ProductPage({ token }) {
 
       <Box sx={{ p: 4, position: "relative" }}>
         <Button variant="contained" onClick={() => setShowAddModal(true)}
-          sx={{ background: "#8b29f4", fontWeight: "bold", position: "absolute", top:0, right: 0,mt:2 }}>
+          sx={{ background: "#8b29f4", fontWeight: "bold", position: "absolute", top: 0, right: 0, mt: 2 }}>
           + Add Product
         </Button>
       </Box>
@@ -154,7 +161,7 @@ export default function ProductPage({ token }) {
         value={searchTerm}
         onChange={e => setSearchTerm(e.target.value)}
         InputProps={{ startAdornment: <InputAdornment position="start"><Search /></InputAdornment> }}
-        sx={{ mb: 3}}
+        sx={{ mb: 3 }}
       />
 
       {filteredProducts.length > 0 ? (
@@ -191,8 +198,8 @@ export default function ProductPage({ token }) {
       )}
 
       <Dialog open={showAddModal} onClose={() => setShowAddModal(false)}>
-        <DialogTitle>Add Product</DialogTitle>
-        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400 }}>
+        <DialogTitle sx={{ bgcolor: "#8b29f4ff", color: "#fff" }}>Add Product</DialogTitle>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400,mt: 2 }}>
           <TextField label="Name" value={newProduct.name} onChange={e => setNewProduct(prev => ({ ...prev, name: e.target.value }))} />
           <TextField label="Brand" value={newProduct.brand} onChange={e => setNewProduct(prev => ({ ...prev, brand: e.target.value }))} />
           <TextField label="Description" value={newProduct.description} onChange={e => setNewProduct(prev => ({ ...prev, description: e.target.value }))} />
@@ -206,7 +213,7 @@ export default function ProductPage({ token }) {
       <Dialog open={showEditModal} onClose={() => setShowEditModal(false)}>
         <DialogTitle sx={{ bgcolor: "#8b29f4ff", color: "#fff" }}>Edit Product</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400 }}>
-          <TextField sx={{mt:2}} label="Name" value={editProduct.name} onChange={e => setEditProduct(prev => ({ ...prev, name: e.target.value }))} />
+          <TextField sx={{ mt: 2 }} label="Name" value={editProduct.name} onChange={e => setEditProduct(prev => ({ ...prev, name: e.target.value }))} />
           <TextField label="Brand" value={editProduct.brand} onChange={e => setEditProduct(prev => ({ ...prev, brand: e.target.value }))} />
           <TextField label="Description" value={editProduct.description} onChange={e => setEditProduct(prev => ({ ...prev, description: e.target.value }))} />
         </DialogContent>

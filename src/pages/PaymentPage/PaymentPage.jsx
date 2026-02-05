@@ -21,6 +21,12 @@ import {
     AttachMoney,
     CalendarMonth
 } from "@mui/icons-material";
+import Swal from "sweetalert2";
+import 'sweetalert2/dist/sweetalert2.min.css';
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import DialogActions from "@mui/material/DialogActions";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import PersonIcon from "@mui/icons-material/Person";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
@@ -30,6 +36,12 @@ export default function PaymentPage({ token }) {
     const [selectedBusiness, setSelectedBusiness] = useState(null);
     const [businesses, setBusinesses] = useState([]);
     const [payments, setPayments] = useState([]);
+    const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
+
+    const [newPayment, setNewPayment] = useState({
+        price: "",
+        date: ""
+    });
 
     useEffect(() => {
         getBusinesses();
@@ -77,6 +89,51 @@ export default function PaymentPage({ token }) {
             setSelectedBusiness(null);
         }
     };
+
+    const submitAddPayment = async () => {
+        try {
+            const payload = {
+                businessId: selectedBusiness.id,
+                price: Number(newPayment.price),
+                date: newPayment.date
+            };
+
+            const res = await fetch("http://localhost:8080/api/v1/payment", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify(payload),
+            });
+
+            if (!res.ok) throw new Error("Failed to add payment");
+
+            setShowAddPaymentModal(false);
+            setNewPayment({ price: "", date: "" });
+            getPayments();
+
+            Swal.fire({
+                position: "top-end",
+                icon: "success",
+                title: "Payment added successfully",
+                showConfirmButton: false,
+                timer: 1500,
+                toast: true,
+            });
+
+        } catch (error) {
+            console.error(error);
+            Swal.fire({
+                position: "top-end",
+                icon: "error",
+                title: "Failed to add payment",
+                showConfirmButton: false,
+                timer: 1500,
+            });
+        }
+    };
+
 
     return (
         <Box>
@@ -216,6 +273,72 @@ export default function PaymentPage({ token }) {
                     </Typography>
                 </Paper>
             )}
+            {selectedBusiness && (
+                <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+                    <Button
+                        variant="contained"
+                        sx={{ bgcolor: "#7c3aed", fontWeight: "bold" }}
+                        onClick={() => {
+                            setNewPayment({
+                                businessId: selectedBusiness.id,
+                                price: "",
+                                date: ""
+                            });
+                            setShowAddPaymentModal(true);
+                        }}
+                    >
+                        + Add Payment
+                    </Button>
+                </Box>
+            )}
+            <Dialog open={showAddPaymentModal} onClose={() => setShowAddPaymentModal(false)}>
+                <DialogTitle sx={{ bgcolor: "#7c3aed", color: "#fff" }}>
+                    Add Payment
+                </DialogTitle>
+
+                <DialogContent
+                    sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400 }}
+                >
+                    <TextField
+                        sx={{ mt: 1 }}
+                        label="Amount"
+                        type="number"
+                        value={newPayment.price}
+                        onChange={(e) =>
+                            setNewPayment(prev => ({ ...prev, price: e.target.value }))
+                        }
+                    />
+
+                    <TextField
+                        label="Payment Date"
+                        type="date"
+                        InputLabelProps={{ shrink: true }}
+                        value={newPayment.date}
+                        onChange={(e) =>
+                            setNewPayment(prev => ({ ...prev, date: e.target.value }))
+                        }
+                    />
+                </DialogContent>
+
+                <DialogActions>
+                    <Button
+                        sx={{ color: "#7c3aed" }}
+                        onClick={() => setShowAddPaymentModal(false)}
+                    >
+                        Cancel
+                    </Button>
+
+                    <Button
+                        variant="contained"
+                        sx={{ bgcolor: "#7c3aed" }}
+                        onClick={submitAddPayment}
+                    >
+                        Save
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+
         </Box>
     );
 }

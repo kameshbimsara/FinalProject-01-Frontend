@@ -263,8 +263,8 @@ export default function BusinessPage({ token }) {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
-      <main className="flex-1 p-2">
+    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#f3f4f6", p: 2 }}>
+      <Box component="main" sx={{ flex: 1 }}>
         <Box
           sx={{
             background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
@@ -288,7 +288,7 @@ export default function BusinessPage({ token }) {
 
         <Box sx={{ p: 4 }}>
           <Button variant="contained" onClick={() => setShowAddModal(true)}
-            sx={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", fontWeight: 'bold', position: 'absolute', top: 120, right: 40 }}>
+            sx={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", fontWeight: 'bold', position: 'absolute', top: 120, right: 40,mt:2 }}>
             + Add Business
           </Button>
         </Box>
@@ -462,7 +462,7 @@ export default function BusinessPage({ token }) {
           </DialogActions>
         </Dialog>
 
-      </main>
-    </div >
+      </Box>
+    </Box>
   );
 }

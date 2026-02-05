@@ -1,226 +1,294 @@
 import React, { useState, useEffect } from "react";
 import {
-  IconButton,
-  TextField,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Avatar,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-} from "@mui/material";
-
-import {
   Box,
-  Drawer,
-  Typography,
   Button,
-  Stack,
-  Grid,
+  TextField,
+  Typography,
   Card,
-  CardContent
+  CardContent,
+  Grid,
+  Divider
 } from "@mui/material";
+import { IconButton, Chip } from "@mui/material";
+import { ReceiptLong } from "@mui/icons-material";
 
-export default function OrdersPage({ token }) {
-  const [orders, setOrders] = useState([]);
-  const [customers, setCustomers] = useState([]);
-  const [ownerBusinesses, setOwnerBusinesses] = useState([]);
 
-  const [newOrder, setNewOrder] = useState({
-    customerId: "",
-    date: "",
-    totalAmount: "",
-    businessId: "",
-  });
+export default function OrdersPage() {
+  const [view, setView] = useState("add");
+  const [orders, setOrders] = useState(
+    JSON.parse(localStorage.getItem("orders")) || []
+  );
 
-  const [editOrder, setEditOrder] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [searchCustomerId, setSearchCustomerId] = useState("");
+  const [customer, setCustomer] = useState("");
+  const [product, setProduct] = useState("");
+  const [orderDate, setOrderDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
 
-  const loadOwnerBusinesses = async () => {
-    try {
-      const ownerId = localStorage.getItem("ownerId");
+  const [items, setItems] = useState([
+    { product: "", quantity: 1, price: 0 }
+  ]);
 
-      const res = await fetch(
-        `http://localhost:8080/api/v1/business/owner/${ownerId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      const data = await res.json();
-      setOwnerBusinesses(data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const loadOrders = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch("http://localhost:8080/api/v1/orders", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const data = await res.json();
-      setOrders(data);
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadCustomers = async () => {
-    try {
-      const res = await fetch("http://localhost:8080/api/customers", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const data = await res.json();
-      setCustomers(data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  const totalAmount = items.reduce(
+    (sum, item) => sum + item.quantity * item.price,
+    0
+  );
 
   useEffect(() => {
-    loadOwnerBusinesses();
-    loadOrders();
-    loadCustomers();
-  }, []);
+    localStorage.setItem("orders", JSON.stringify(orders));
+  }, [orders]);
 
-  const handleAddOrder = async () => {
-    if (!newOrder.customerId || !newOrder.date || !newOrder.totalAmount || !newOrder.businessId) {
-      alert("Please fill all required fields");
-      return;
-    }
-
-    try {
-      const res = await fetch("http://localhost:8080/api/v1/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(newOrder),
-      });
-
-      if (!res.ok) throw new Error("Failed to create order");
-
-      setNewOrder({
-        customerId: "",
-        date: "",
-        totalAmount: "",
-        businessId: "",
-      });
-
-      loadOrders();
-      alert("Order created successfully!");
-    } catch (err) {
-      alert(err.message);
-    }
+  const addItem = () => {
+    setItems([...items, { product: "", quantity: 1, price: 0 }]);
   };
 
-  const handleUpdateOrder = async () => {
-    if (!editOrder.customerId || !editOrder.date || !editOrder.totalAmount || !editOrder.businessId) {
-      alert("Please fill all required fields");
-      return;
-    }
-
-    try {
-      const res = await fetch(`http://localhost:8080/api/v1/orders/${editOrder.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(editOrder),
-      });
-
-      if (!res.ok) throw new Error("Failed to update order");
-
-      setEditOrder(null);
-      loadOrders();
-      alert("Order updated successfully!");
-    } catch (err) {
-      alert(err.message);
-    }
+  const removeItem = (index) => {
+    setItems(items.filter((_, i) => i !== index));
   };
 
-  const handleDeleteOrder = async (id) => {
-    if (!window.confirm("Are you sure?")) return;
-
-    try {
-      const res = await fetch(`http://localhost:8080/api/v1/orders/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) throw new Error("Failed to delete order");
-
-      loadOrders();
-      alert("Order deleted!");
-    } catch (err) {
-      alert(err.message);
-    }
+  const handleItemChange = (index, field, value) => {
+    const updated = [...items];
+    updated[index][field] =
+      field === "product" ? value : parseFloat(value) || 0;
+    setItems(updated);
   };
 
-  const handleSearchOrders = async () => {
-    if (!searchCustomerId) {
-      alert("Please select a customer to search");
-      return;
-    }
+  const createOrder = () => {
+    if (items.length === 0) return alert("Add at least one item");
 
-    try {
-      setLoading(true);
-      const res = await fetch(
-        `http://localhost:8080/api/v1/orders/customer/${searchCustomerId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+    const newOrder = {
+      id: "ORD-" + Date.now(),
+      customer,
+      date: orderDate,
+      orderDetails: items,
+      totalAmount
+    };
 
-      if (!res.ok) throw new Error("Failed to search orders");
+    setOrders([...orders, newOrder]);
 
-      const data = await res.json();
-      setOrders(Array.isArray(data) ? data : [data]);
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      setLoading(false);
-    }
+    setCustomer("");
+    setItems([{ product: "", quantity: 1, price: 0 }]);
+    setView("view");
   };
 
-  const resetSearch = () => {
-    setSearchCustomerId("");
-    loadOrders();
+  const buttonStyle = {
+    borderColor: "#8b29f4ff",
+    color: "#8b29f4ff",
+    "&:hover": {
+      borderColor: "#8b29f4ff",
+      backgroundColor: "rgba(139, 41, 244, 0.08)",
+    },
+    "&.MuiButton-contained": {
+      backgroundColor: "#8b29f4ff",
+      color: "#fff",
+      "&:hover": {
+        backgroundColor: "#6f1fd1",
+      },
+    },
   };
+
 
   return (
-    <Box
-      sx={{
-        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-        color: "#fff",
-        p: 2,
-        borderRadius: 2,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-      }}
-    >
+    <Box>
+      <Box
+        sx={{
+          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          color: "#fff",
+          p: 2,
+          borderRadius: 2,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
 
-      <Typography variant="h6">Welcome To My Orders Managemant !</Typography>
+        <Typography variant="h6">Welcome To My Orders Managemant !</Typography>
 
-      <Box sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 2 }}>
-        <IconButton color="inherit">
-        </IconButton>
-        <Avatar sx={{ bgcolor: "rgba(255,255,255,0.3)", color: "#fff" }}>SB</Avatar>
+        <Box sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 2 }}>
+          <IconButton color="inherit">
+          </IconButton>
+          <Grid item>
+            <Chip
+              icon={<ReceiptLong />}
+              // label={`${suppliers} Suppliers`}
+              color="secondary"
+            />
+          </Grid>
+        </Box>
       </Box>
+
+      <Box sx={{ display: "flex", gap: 2, mb: 4, mt: 3 }}>
+        <Button
+          variant={view === "add" ? "contained" : "outlined"}
+          onClick={() => setView("add")}
+          sx={buttonStyle}
+        >
+          New Order
+        </Button>
+        <Button
+          variant={view === "view order" ? "contained" : "outlined"}
+          onClick={() => setView("view order")}
+          sx={buttonStyle}
+        >
+          View Orders
+        </Button>
+        <Button
+          variant={view === "view order details" ? "contained" : "outlined"}
+          onClick={() => setView("view order details")}
+          sx={buttonStyle}
+        >
+          View Order Details
+        </Button>
+      </Box>
+
+      {view === "add" && (
+        <Card sx={{ p: 3 }}>
+          <CardContent>
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Customer Phone Number"
+                  value={customer}
+                  onChange={(e) => setCustomer(e.target.value)}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Product Name"
+                  value={product}
+                  onChange={(e) => setProduct(e.target.value)}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  type="date"
+                  label="Order Date"
+                  InputLabelProps={{ shrink: true }}
+                  value={orderDate}
+                  onChange={(e) => setOrderDate(e.target.value)}
+                />
+              </Grid>
+            </Grid>
+
+            <Divider sx={{ my: 3 }} />
+
+            <Typography variant="h6" mb={2}>
+              Order Items
+            </Typography>
+
+            {items.map((item, index) => (
+              <Grid container spacing={2} mb={2} key={index}>
+
+                <Grid item xs={6} md={2}>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Qty"
+                    value={item.quantity}
+                    onChange={(e) =>
+                      handleItemChange(index, "quantity", e.target.value)
+                    }
+                  />
+                </Grid>
+
+                <Grid item xs={6} md={3}>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Price"
+                    value={item.price}
+                    onChange={(e) =>
+                      handleItemChange(index, "price", e.target.value)
+                    }
+                  />
+                </Grid>
+
+                <Grid item xs={12} md={3}>
+                  <Button
+                    color="error"
+                    fullWidth
+                    variant="outlined"
+                    onClick={() => removeItem(index)}
+                  >
+                    Remove
+                  </Button>
+                </Grid>
+              </Grid>
+            ))}
+
+            <Button onClick={addItem} sx={{ mb: 3, color: "#8b29f4ff" }}>
+              + Add Item
+            </Button>
+
+            <TextField
+              fullWidth
+              label="Total Amount"
+              value={totalAmount.toFixed(2)}
+              InputProps={{ readOnly: true }}
+              sx={{ mb: 3 }}
+            />
+
+            <Button
+              fullWidth
+              variant="contained"
+              size="large"
+              onClick={createOrder}
+              sx={buttonStyle}
+            >
+              Create Order
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* VIEW ORDERS */}
+      {view === "view" && (
+        <Box sx={{ display: "grid", gap: 3 }}>
+          {orders.length === 0 && (
+            <Typography align="center" color="text.secondary">
+              No orders yet
+            </Typography>
+          )}
+
+          {orders.map((order) => (
+            <Card key={order.id}>
+              <CardContent>
+                <Typography variant="h5">{order.id}</Typography>
+                <Typography color="text.secondary" mb={2}>
+                  {new Date(order.date).toDateString()}
+                </Typography>
+
+                <Typography mb={1}>
+                  Customer: <b>{order.customer}</b>
+                </Typography>
+
+                <Divider sx={{ my: 2 }} />
+
+                {order.orderDetails.map((item, i) => (
+                  <Grid container key={i} mb={1}>
+                    <Grid item xs={4}>{item.product}</Grid>
+                    <Grid item xs={2}>{item.quantity}</Grid>
+                    <Grid item xs={3}>${item.price.toFixed(2)}</Grid>
+                    <Grid item xs={3}>
+                      ${(item.quantity * item.price).toFixed(2)}
+                    </Grid>
+                  </Grid>
+                ))}
+
+                <Divider sx={{ my: 2 }} />
+
+                <Typography variant="h6" color="primary">
+                  Total: ${order.totalAmount.toFixed(2)}
+                </Typography>
+              </CardContent>
+            </Card>
+          ))}
+        </Box>
+      )}
     </Box>
   );
 }

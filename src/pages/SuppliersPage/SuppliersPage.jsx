@@ -29,7 +29,14 @@ export default function SupplierPage({ token }) {
       const res = await axios.get(`http://localhost:8080/api/v1/bizsuppler`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setSuppliers(Array.isArray(res.data) ? res.data : []);
+
+      const allSuppliers = Array.isArray(res.data) ? res.data : [];
+
+      const businessSuppliers = allSuppliers.filter(
+        (s) => s.businessId === Number(businessId)
+      );
+      setSuppliers(businessSuppliers);
+
     } catch (err) {
       console.error("Failed to load suppliers", err);
       setSuppliers([]);
@@ -164,7 +171,7 @@ export default function SupplierPage({ token }) {
         value={searchTerm}
         onChange={e => setSearchTerm(e.target.value)}
         InputProps={{ startAdornment: <InputAdornment position="start"><Search /></InputAdornment> }}
-        sx={{ mb: 3, mt:3 }}
+        sx={{ mb: 3, mt: 3 }}
       />
 
       {filteredSuppliers.length > 0 ? (
@@ -199,8 +206,8 @@ export default function SupplierPage({ token }) {
       )}
 
       <Dialog open={showAddModal} onClose={() => setShowAddModal(false)}>
-        <DialogTitle>Add Supplier</DialogTitle>
-        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400 }}>
+        <DialogTitle sx={{ bgcolor: "#8b29f4ff", color: "#fff"}}>Add Supplier</DialogTitle>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400, mt: 2 }}>
           <TextField label="Company Name" value={newSupplier.companyName} onChange={e => setNewSupplier(prev => ({ ...prev, companyName: e.target.value }))} />
           <TextField label="Contact No" value={newSupplier.contactNo} onChange={e => setNewSupplier(prev => ({ ...prev, contactNo: e.target.value }))} />
         </DialogContent>
@@ -213,11 +220,11 @@ export default function SupplierPage({ token }) {
       <Dialog open={showEditModal} onClose={() => setShowEditModal(false)}>
         <DialogTitle sx={{ bgcolor: "#8b29f4ff", color: "#fff" }}>Edit Supplier</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400 }}>
-          <TextField 
-          sx={{ mt: 2 }}
-          label="Company Name"
-          value={editSupplier.companyName} 
-          onChange={e => setEditSupplier(prev => ({ ...prev, companyName: e.target.value }))} />
+          <TextField
+            sx={{ mt: 2 }}
+            label="Company Name"
+            value={editSupplier.companyName}
+            onChange={e => setEditSupplier(prev => ({ ...prev, companyName: e.target.value }))} />
           <TextField label="Contact No" value={editSupplier.contactNo} onChange={e => setEditSupplier(prev => ({ ...prev, contactNo: e.target.value }))} />
         </DialogContent>
         <DialogActions>

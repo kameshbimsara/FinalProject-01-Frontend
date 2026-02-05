@@ -8,23 +8,21 @@ import {
   Typography,
   Tab,
   Tabs,
+  TextField,
 } from '@mui/material';
 import {
   Business,
   AdminPanelSettings
 } from '@mui/icons-material';
 import axios, { Axios } from "axios";
-import img1 from "../../assets/img1.png";
+import img1 from "../../assets/logo.jpeg";
 
 export default function LoginPage() {
   const [tabValue, setTabValue] = useState("ADMIN");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-
   const navigate = useNavigate();
-
   const handleTabChange = (event, newValue) => {
-
     setTabValue(newValue);
     setFormData({ email: '', password: '' });
   };
@@ -72,7 +70,7 @@ export default function LoginPage() {
         localStorage.setItem("businessId", data.id);
         localStorage.setItem("ownerName", data.ownerName);
 
-        console.log("Login Response:", data); 
+        console.log("Login Response:", data);
 
         showToast("success", "Signed in successfully");
         navigate("/owner-dashboard");
@@ -142,8 +140,6 @@ export default function LoginPage() {
             Welcome To SmartBiz! Please Login Continue
           </Typography>
         </Box>
-
-
         <Tabs
           value={tabValue}
           onChange={handleTabChange}
@@ -172,31 +168,29 @@ export default function LoginPage() {
           />
         </Tabs>
 
-        <div className="mb-4">
-          <label className="block text-gray-700 font-medium mb-1 mt-2">
-            Email
-          </label>
-          <input
+        <Box sx={{ mb: 1 }}>
+          <TextField
+            label="Email"
             type="text"
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400 outline-none"
-            placeholder="Enter your email"
+            fullWidth
+            margin="normal"
+            variant="outlined"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
           />
-        </div>
+        </Box>
 
-        <div className="mb-6">
-          <label className="block text-gray-700 font-medium mb-1">
-            Password
-          </label>
-          <input
+        <Box sx={{ mb: 2 }}>
+          <TextField
+            label="Password"
             type="password"
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400 outline-none"
-            placeholder="Enter your password"
+            fullWidth
+            margin="normal"
+            variant="outlined"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-        </div>
+        </Box>
 
         <Button
           onClick={handleLogin}

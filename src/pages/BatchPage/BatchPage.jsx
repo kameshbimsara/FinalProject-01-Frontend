@@ -21,15 +21,17 @@ import {
   IconButton,
   Chip,
 } from "@mui/material";
-import Inventory2 from "@mui/icons-material/Inventory2";
+import Category from "@mui/icons-material/Category";
+import Swal from "sweetalert2";
+
 
 export default function BatchPage({ token }) {
   const [search, setSearch] = useState("");
-  const [products, setProducts] = useState([]);
+  const [product, setProduct] = useState(null);
   const [suppliers, setSuppliers] = useState([]);
-  const [batches, setBatches] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedSupplier, setSelectedSupplier] = useState("");
+  const [filteredBatches, setFilteredBatches] = useState([]);
 
   const businessId = localStorage.getItem("businessId");
 
@@ -39,112 +41,157 @@ export default function BatchPage({ token }) {
     quantity: "",
     unitPrice: ""
   });
-  const [searchMessage, setSearchMessage] = useState("");
+  const [searchMessage, setSearchMessage] = useState("Search To product");
 
   useEffect(() => {
-    loadProducts();
     loadSuppliers();
-    loadBatches();
   }, []);
 
-  const loadProducts = async () => {
-    const res = await axios.get("http://localhost:8080/api/v1/products", {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    setProducts(res.data);
-  };
+  useEffect(() => {
+    if (product !== null) {
+      handleSearch();
+    }
+  }, [product]);
 
   const loadSuppliers = async () => {
-    const res = await axios.get("http://localhost:8080/api/v1/bizsuppler", {
+    const res = await axios.get(`http://localhost:8080/api/v1/bizsuppler/business/${businessId}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
-
-    const businessSuppliers = res.data.filter(
-      (s) => s.businessId === Number(businessId)
-    );
-
-    setSuppliers(businessSuppliers);
+    setSuppliers(res.data);
   };
 
-  const loadBatches = async () => {
-    const res = await axios.get("http://localhost:8080/api/v1/batches", {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    const enrichedBatches = res.data.map(b => ({
-      ...b,
-      product: products.find(p => p.id === b.productId),
-      supplier: suppliers.find(s => s.id === b.supplierId),
-    }));
+  const loadProducts = async () => {
+    try {
+      const res = await axios.post(
+        "http://localhost:8080/api/v1/products/product_with_batches",
+        {
+          productName: search,
+          businessId: Number(businessId)
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        }
+      );
 
-    setBatches(enrichedBatches);
-  };
+      setProduct(res.data);
+      setSelectedProduct(res.data);
 
-  const handleSearch = () => {
-    if (!search.trim()) {
+      setFilteredBatches(res.data.batches);
+      setSearchMessage("");
+
+    } catch (err) {
+      console.error(err);
+      setProduct(null);
       setSelectedProduct(null);
+      setFilteredBatches([]);
+      setSearchMessage("No product found for your business with this name");
+    }
+  };
+
+
+  const handleSearch = async () => {
+    if (search.trim() === "") {
+      setSelectedProduct(null);
+      setFilteredBatches([]);
+      setSearchMessage("Search To product");
+    }
+
+    if (!product) {
+      setSelectedProduct(null);
+      setFilteredBatches([]);
+      setSearchMessage("No product found for your business with this name");
       return;
     }
 
-    const found = products.find(
-      (p) =>
-        p.name.toLowerCase().includes(search.toLowerCase()) &&
-        p.businessId === Number(businessId)
-    );
-
-    if (found) {
-      setSelectedProduct(found);
+    try {
+      setSelectedProduct(product);
       setSearchMessage("");
-    } else {
-      setSelectedProduct(null);
-      setSearchMessage("No product found for your business with this name");
-    }
 
+      setFilteredBatches(product.batches);
+
+    } catch (err) {
+      console.error(err);
+      setFilteredBatches([]);
+      setSearchMessage("Failed to load batches for this product");
+    }
   };
 
+
+
   const saveBatch = async () => {
-  const token = localStorage.getItem("token");
-  const businessId = localStorage.getItem("businessId");
+    if (!selectedProduct || !selectedSupplier) {
+      Swal.fire({
+        icon: "error",
+        title: "Please select a product and supplier",
+        confirmButtonColor: "#d33",
+        confirmButtonText: "OK",
+      });
+      return;
+    }
 
-  if (!selectedProduct || !selectedSupplier) {
-    alert("Select product and supplier");
-    return;
-  }
-
-  try {
-    await axios.post(
-      "http://localhost:8080/api/v1/batches",
-      {
-        ...batch,
-        productId: selectedProduct.id,
-        supplierId: selectedSupplier,
-        businessId: Number(businessId)
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
-
-    await loadProducts();
-    await loadSuppliers();
-    await loadBatches();
-
-    alert("Batch saved successfully");
-
-    setSelectedSupplier("");
-    setBatch({
-      manufactureDate: "",
-      expireDate: "",
-      quantity: "",
-      unitPrice: ""
+    const result = await Swal.fire({
+      title: "Add Batch?",
+      text: "Are you sure you want to add this batch?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#8b29f4",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Yes, add it",
+      cancelButtonText: "Cancel",
     });
-  } catch (err) {
-    console.error(err);
-    alert(err.response?.data || "Error saving batch");
-  }
-};
+
+    if (result.isConfirmed) {
+      try {
+        await axios.post(
+          "http://localhost:8080/api/v1/batches",
+          {
+            ...batch,
+            productId: selectedProduct.id,
+            supplierId: selectedSupplier,
+            businessId: Number(businessId)
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json"
+            }
+          }
+        );
+
+        await handleSearch();
+
+        Swal.fire({
+          title: "Batch Added!",
+          text: "The batch has been added successfully.",
+          icon: "success",
+          confirmButtonColor: "#8b29f4",
+          confirmButtonText: "OK",
+        });
+
+        setBatch({
+          manufactureDate: "",
+          expireDate: "",
+          quantity: "",
+          unitPrice: ""
+        });
+        setSelectedSupplier("");
+
+      } catch (err) {
+        console.error(err);
+        Swal.fire({
+          title: "Failed to add batch",
+          text: "Something went wrong. Please try again.",
+          icon: "error",
+          confirmButtonColor: "#d33",
+          confirmButtonText: "OK",
+        });
+      }
+    }
+  };
+
 
   return (
     <Box >
@@ -161,22 +208,22 @@ export default function BatchPage({ token }) {
         }}
       >
 
-        <Typography variant="h6">Welcome To My Product Managemant !</Typography>
+        <Typography variant="h6">Welcome To My Batch Managemant !</Typography>
 
         <Box sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 2 }}>
           <IconButton color="inherit">
           </IconButton>
           <Grid item>
             <Chip
-              icon={<Inventory2 />}
-              label={`${products.length} Products`}
+              icon={<Category />}
+              label={`${filteredBatches.length} Batches`}
               color="secondary"
             />
           </Grid>
         </Box>
       </Box>
 
-      <Grid container spacing={3} sx={{mt:3}}>
+      <Grid container spacing={3} sx={{ mt: 3 }}>
         <Grid item xs={12} md={6}>
           <Card sx={{ height: "100%" }}>
             <CardContent>
@@ -187,14 +234,21 @@ export default function BatchPage({ token }) {
 
                 <TextField
                   fullWidth
-                  label="Product name"
+                  label="Product Name..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
                 <Button
                   variant="contained"
-                  onClick={handleSearch}
-                  sx={{ minWidth: 100, height: 40 }}
+                  onClick={loadProducts}
+                  sx={{
+                    minWidth: 100,
+                    height: 40,
+                    backgroundColor: "#a758fcff",
+                    "&:hover": {
+                      backgroundColor: "#8b29f4ff",
+                    }
+                  }}
                 >
                   Search
                 </Button>
@@ -203,7 +257,6 @@ export default function BatchPage({ token }) {
 
               {selectedProduct && (
                 <Box mt={3}>
-                  <Info label="ID" value={selectedProduct.id} />
                   <Info label="Name" value={selectedProduct.name} />
                   <Info label="Brand" value={selectedProduct.brand} />
                   <Info label="Description" value={selectedProduct.description} />
@@ -219,7 +272,7 @@ export default function BatchPage({ token }) {
         </Grid>
 
         <Grid item xs={12} md={6}>
-          <Card sx={{ height: "100%"}}>
+          <Card sx={{ height: "100%", width: "100%" }}>
             <CardContent>
               <Typography variant="h6">Add Batch</Typography>
               <Divider sx={{ mb: 2 }} />
@@ -278,55 +331,77 @@ export default function BatchPage({ token }) {
 
               <Button
                 variant="contained"
-                sx={{width:"40%"}}
                 onClick={saveBatch}
+                sx={{
+                  width: "50%",
+                  height: 40,
+                  backgroundColor: "#a758fcff",
+                  "&:hover": {
+                    backgroundColor: "#8b29f4ff",
+                  }
+                }}
               >
                 Add Batch
               </Button>
             </CardContent>
           </Card>
         </Grid>
-        </Grid>
+      </Grid>
 
 
-        <Grid item xs={12} sx={{mt:3}}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6">Batch List</Typography>
-              <Divider sx={{ mb: 2 }} />
+      <Grid item xs={12} sx={{ mt: 3 }}>
+        <Card>
+          <CardContent>
+            <Typography variant="h6">Batch List</Typography>
+            <Divider sx={{ mb: 2 }} />
 
-              <TableContainer component={Paper}>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>ID</TableCell>
-                      <TableCell>Product</TableCell>
-                      <TableCell>Supplier</TableCell>
-                      <TableCell>Manufacture</TableCell>
-                      <TableCell>Expire</TableCell>
-                      <TableCell>Qty</TableCell>
-                      <TableCell>Unit Price</TableCell>
-                    </TableRow>
-                  </TableHead>
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead sx={{ bgcolor: "#8b29f4ff" }}>
+                  <TableRow>
+                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>ID</TableCell>
+                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Product</TableCell>
+                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Supplier</TableCell>
+                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Manufacture</TableCell>
+                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Expire</TableCell>
+                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Qty</TableCell>
+                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Unit Price</TableCell>
+                  </TableRow>
+                </TableHead>
 
-                  <TableBody>
-                    {batches.map((b) => (
+                <TableBody>
+                  {filteredBatches.length > 0 ? (
+                    filteredBatches.map((b) => (
                       <TableRow key={b.id}>
                         <TableCell>{b.id}</TableCell>
-                        <TableCell>{products.find(p => p.id === b.productId)?.name}</TableCell>
-                        <TableCell>{suppliers.find(s => s.id === b.supplierId)?.companyName}</TableCell>
+                        <TableCell>
+                          {product?.name}
+                        </TableCell>
+                        <TableCell>
+                          {suppliers.find(s => s.id === b.supplierId)?.companyName}
+                        </TableCell>
                         <TableCell>{b.manufactureDate}</TableCell>
                         <TableCell>{b.expireDate}</TableCell>
                         <TableCell>{b.quantity}</TableCell>
                         <TableCell>{b.unitPrice}</TableCell>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </CardContent>
-          </Card>
-        </Grid>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={7} align="center">
+                        {search.trim()
+                          ? "No batches found for this product"
+                          : "Search a product"}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
+      </Grid>
     </Box>
   );
 }

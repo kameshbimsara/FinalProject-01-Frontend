@@ -198,7 +198,7 @@ export default function CustomerPage({ token }) {
 
       <Dialog open={showAddModal} onClose={() => setShowAddModal(false)}>
         <DialogTitle sx={{ bgcolor: "#8b29f4ff", color: "#fff" }}>Add Customer</DialogTitle>
-        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400 }}>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400,mt:2 }}>
           <TextField label="Name" value={newCustomer.name} onChange={e => setNewCustomer(prev => ({ ...prev, name: e.target.value }))} />
           <TextField label="Phone" value={newCustomer.phone} onChange={e => setNewCustomer(prev => ({ ...prev, phone: e.target.value }))} />
         </DialogContent>
@@ -229,9 +229,9 @@ export default function CustomerPage({ token }) {
         </DialogActions>
       </Dialog>
 
-      <Box sx={{ minHeight: "100vh", bgcolor: "#f9fafb" }}>
+      <Box sx={{ minHeight: "100vh", bgcolor: "#f9fafb"}}>
 
-        <Box sx={{ maxWidth: 1200, mx: "auto", px: 2, mt: 4 }}>
+        <Box sx={{ maxWidth: "100%", mx: "auto", px: 2, mt: 4 }}>
           <TextField
             fullWidth
             placeholder="Search customers by name or phone..."
