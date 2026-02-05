@@ -11,28 +11,19 @@ import {
 } from "@mui/material";
 import { IconButton, Chip } from "@mui/material";
 import { ReceiptLong } from "@mui/icons-material";
+import axios from "axios";
 
 
-export default function OrdersPage() {
+export default function OrdersPage({ token }) {
   const [view, setView] = useState("add");
-  const [orders, setOrders] = useState(
-    JSON.parse(localStorage.getItem("orders")) || []
-  );
+  const [orders, setOrders] = useState(JSON.parse(localStorage.getItem("orders")) || []);
+
+  const businessId = Number(localStorage.getItem("businessId"));
 
   const [customer, setCustomer] = useState("");
-  const [product, setProduct] = useState("");
-  const [orderDate, setOrderDate] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+  const [items, setItems] = useState([{ product: "", quantity: 1, price: 0 }]);
 
-  const [items, setItems] = useState([
-    { product: "", quantity: 1, price: 0 }
-  ]);
-
-  const totalAmount = items.reduce(
-    (sum, item) => sum + item.quantity * item.price,
-    0
-  );
+  const totalAmount = items.reduce((sum, item) => sum + item.quantity * item.price, 0);
 
   useEffect(() => {
     localStorage.setItem("orders", JSON.stringify(orders));
@@ -53,23 +44,82 @@ export default function OrdersPage() {
     setItems(updated);
   };
 
-  const createOrder = () => {
-    if (items.length === 0) return alert("Add at least one item");
+  const createOrder = async () => {
+    if (items.length === 0) {
+      alert("Add at least one item");
+      return;
+    }
 
-    const newOrder = {
-      id: "ORD-" + Date.now(),
-      customer,
-      date: orderDate,
-      orderDetails: items,
-      totalAmount
-    };
+    try {
+      const customerRes = await axios.post(
+        "http://localhost:8080/api/customers/phoneNumber",
+        {
+          phoneNumber: customer,
+          businessId: businessId,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      console.log("Customer Response:", customerRes.data);
 
-    setOrders([...orders, newOrder]);
+      const customerId = customerRes.data.id;
 
-    setCustomer("");
-    setItems([{ product: "", quantity: 1, price: 0 }]);
-    setView("view");
+      const orderDetails = [];
+
+      for (const item of items) {
+        console.log(item.product)
+        const productRes = await axios.post(
+          "http://localhost:8080/api/v1/products/productName",
+          {
+            productName: item.product,
+            businessId: businessId,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+
+        );
+        console.log("Product Response:", productRes.data);
+
+        orderDetails.push({
+          productId: productRes.data.id,
+          quantity: item.quantity,
+          price: item.price,
+        });
+      }
+
+      const newOrder = {
+        customerId,
+        businessId,
+        orderDetails,
+        totalAmount,
+      };
+
+      const response = await axios.post("http://localhost:8080/api/v1/orders",
+        newOrder, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      console.log("Order Creation Response:", response.data);
+
+      alert("Order created successfully");
+
+      setCustomer("");
+      setItems([{ product: "", quantity: 1, price: 0 }]);
+      setView("view");
+
+    } catch (err) {
+      console.error(err);
+      alert("Customer or Product not found");
+    }
   };
+
 
   const buttonStyle = {
     borderColor: "#8b29f4ff",
@@ -126,15 +176,15 @@ export default function OrdersPage() {
           New Order
         </Button>
         <Button
-          variant={view === "view order" ? "contained" : "outlined"}
-          onClick={() => setView("view order")}
+          variant={view === "view" ? "contained" : "outlined"}
+          onClick={() => setView("view")}
           sx={buttonStyle}
         >
           View Orders
         </Button>
         <Button
-          variant={view === "view order details" ? "contained" : "outlined"}
-          onClick={() => setView("view order details")}
+          variant={view === "view details" ? "contained" : "outlined"}
+          onClick={() => setView("view details")}
           sx={buttonStyle}
         >
           View Order Details
@@ -153,25 +203,6 @@ export default function OrdersPage() {
                   onChange={(e) => setCustomer(e.target.value)}
                 />
               </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Product Name"
-                  value={product}
-                  onChange={(e) => setProduct(e.target.value)}
-                />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  type="date"
-                  label="Order Date"
-                  InputLabelProps={{ shrink: true }}
-                  value={orderDate}
-                  onChange={(e) => setOrderDate(e.target.value)}
-                />
-              </Grid>
             </Grid>
 
             <Divider sx={{ my: 3 }} />
@@ -182,6 +213,17 @@ export default function OrdersPage() {
 
             {items.map((item, index) => (
               <Grid container spacing={2} mb={2} key={index}>
+
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Product Name"
+                    value={item.product}
+                    onChange={(e) =>
+                      handleItemChange(index, "product", e.target.value)
+                    }
+                  />
+                </Grid>
 
                 <Grid item xs={6} md={2}>
                   <TextField
