@@ -206,7 +206,7 @@ export default function AdminDashboardPage() {
             <Grid container spacing={3} mb={4}>
               {stats.map((s, i) => (
                 <Grid item xs={12} sm={6} md={3} key={i}>
-                  <Card sx={{ borderTop: "10px solid #667eea", boxShadow: 10, width: 200 }}>
+                  <Card sx={{ borderTop: "10px solid #8b29f4ff", boxShadow: 10, width: 200 }}>
                     <CardContent sx={{ marginLeft: 2 }}>
                       <Typography variant="body2" color="text.secondary">
                         {s.label}
@@ -254,7 +254,7 @@ export default function AdminDashboardPage() {
                     />
                     <Bar
                       dataKey="amount"
-                      fill="#667eea"
+                      fill="#8b29f4ff"
                       radius={[8, 8, 0, 0]}
                       name="Amount ($)"
                     />

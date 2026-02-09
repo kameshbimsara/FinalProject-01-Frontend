@@ -42,11 +42,37 @@ export default function ProductPage({ token }) {
 
   useEffect(() => { loadProducts(); }, [token, businessId]);
 
-  const filteredProducts = products.filter(p =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+
+  const searchProductByName = async () => {
+    if (!searchTerm.trim()) {
+      loadProducts();
+      return;
+    }
+
+    try {
+      const res = await axios.post(
+        "http://localhost:8080/api/v1/products/productName",
+        {
+          productName: searchTerm,
+          businessId: parseInt(businessId),
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      const data = Array.isArray(res.data) ? res.data : [res.data];
+      setProducts(data);
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Product not found",
+        confirmButtonColor: "#8b29f4",
+      });
+      setProducts([]);
+    }
+  };
+
 
   const submitAddProduct = async () => {
     if (!newProduct.name || !newProduct.brand || !newProduct.description) {
@@ -157,14 +183,22 @@ export default function ProductPage({ token }) {
 
       <TextField
         fullWidth
-        placeholder="Search products by name, brand or description..."
+        placeholder="Search products by name..."
         value={searchTerm}
         onChange={e => setSearchTerm(e.target.value)}
         InputProps={{ startAdornment: <InputAdornment position="start"><Search /></InputAdornment> }}
         sx={{ mb: 3 }}
       />
 
-      {filteredProducts.length > 0 ? (
+      <Button
+        variant="contained"
+        onClick={searchProductByName}
+        sx={{ mb: 3, bgcolor: "#8b29f4", fontWeight: "bold" }}
+      >
+        Search
+      </Button>
+
+      {products.length > 0 ? (
         <TableContainer component={Paper}>
           <Table>
             <TableHead sx={{ bgcolor: "#8b29f4ff" }}>
@@ -176,7 +210,7 @@ export default function ProductPage({ token }) {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredProducts.map(p => (
+              {products.map(p => (
                 <TableRow key={p.id} hover>
                   <TableCell>{p.name}</TableCell>
                   <TableCell>{p.brand}</TableCell>
@@ -199,7 +233,7 @@ export default function ProductPage({ token }) {
 
       <Dialog open={showAddModal} onClose={() => setShowAddModal(false)}>
         <DialogTitle sx={{ bgcolor: "#8b29f4ff", color: "#fff" }}>Add Product</DialogTitle>
-        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400,mt: 2 }}>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400, mt: 2 }}>
           <TextField label="Name" value={newProduct.name} onChange={e => setNewProduct(prev => ({ ...prev, name: e.target.value }))} />
           <TextField label="Brand" value={newProduct.brand} onChange={e => setNewProduct(prev => ({ ...prev, brand: e.target.value }))} />
           <TextField label="Description" value={newProduct.description} onChange={e => setNewProduct(prev => ({ ...prev, description: e.target.value }))} />

@@ -23,19 +23,49 @@ export default function SupplierPage({ token }) {
 
   localStorage.getItem("token")
 
+
+  const searchSupplierByPhone = async () => {
+    if (!searchTerm.trim()) {
+      loadSuppliers();
+      return;
+    }
+
+    try {
+      const res = await axios.post(
+        "http://localhost:8080/api/v1/bizsuppler/phoneNumber",
+        {
+          phoneNumber: searchTerm,
+          businessId: parseInt(businessId),
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      setSuppliers(res.data ? [res.data] : []);
+
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Supplier not found",
+        confirmButtonColor: "#8b29f4",
+      });
+      setSuppliers([]);
+    }
+  };
+
+
+
   const loadSuppliers = async () => {
     if (!businessId) return;
     try {
-      const res = await axios.get(`http://localhost:8080/api/v1/bizsuppler`, {
+      const res = await axios.get(`http://localhost:8080/api/v1/bizsuppler/business/${businessId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       const allSuppliers = Array.isArray(res.data) ? res.data : [];
 
-      const businessSuppliers = allSuppliers.filter(
-        (s) => s.businessId === Number(businessId)
-      );
-      setSuppliers(businessSuppliers);
+      setSuppliers(allSuppliers);
 
     } catch (err) {
       console.error("Failed to load suppliers", err);
@@ -44,11 +74,6 @@ export default function SupplierPage({ token }) {
   };
 
   useEffect(() => { loadSuppliers(); }, [token, businessId]);
-
-  const filteredSuppliers = suppliers.filter(s =>
-    s.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.contactNo.includes(searchTerm)
-  );
 
   const submitAddSupplier = async () => {
     if (!newSupplier.companyName || !newSupplier.contactNo) {
@@ -167,14 +192,30 @@ export default function SupplierPage({ token }) {
 
       <TextField
         fullWidth
-        placeholder="Search suppliers by name or contact..."
+        placeholder="Search suppliers by contact No..."
         value={searchTerm}
         onChange={e => setSearchTerm(e.target.value)}
         InputProps={{ startAdornment: <InputAdornment position="start"><Search /></InputAdornment> }}
         sx={{ mb: 3, mt: 3 }}
       />
 
-      {filteredSuppliers.length > 0 ? (
+      <Button
+        variant="contained"
+        onClick={searchSupplierByPhone}
+        sx={{
+          mb: 3,
+          bgcolor: "#8b29f4ff",
+          fontWeight: "bold",
+          px: 4,
+          "&:hover": {
+            bgcolor: "#6f1edb",
+          },
+        }}
+      >
+        Search
+      </Button>
+
+      {suppliers.length > 0 ? (
         <TableContainer component={Paper}>
           <Table>
             <TableHead sx={{ bgcolor: "#8b29f4ff" }}>
@@ -185,7 +226,7 @@ export default function SupplierPage({ token }) {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredSuppliers.map(s => (
+              {suppliers.map(s => (
                 <TableRow key={s.id} hover>
                   <TableCell>{s.companyName}</TableCell>
                   <TableCell>{s.contactNo}</TableCell>
@@ -206,7 +247,7 @@ export default function SupplierPage({ token }) {
       )}
 
       <Dialog open={showAddModal} onClose={() => setShowAddModal(false)}>
-        <DialogTitle sx={{ bgcolor: "#8b29f4ff", color: "#fff"}}>Add Supplier</DialogTitle>
+        <DialogTitle sx={{ bgcolor: "#8b29f4ff", color: "#fff" }}>Add Supplier</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400, mt: 2 }}>
           <TextField label="Company Name" value={newSupplier.companyName} onChange={e => setNewSupplier(prev => ({ ...prev, companyName: e.target.value }))} />
           <TextField label="Contact No" value={newSupplier.contactNo} onChange={e => setNewSupplier(prev => ({ ...prev, contactNo: e.target.value }))} />

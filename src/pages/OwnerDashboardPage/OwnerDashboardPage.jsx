@@ -162,23 +162,22 @@ export default function OwnerDashboardPage() {
         }}
       >
 
-        {activePage === "dashboard" && (
+        <Box sx={{ p: 4, flexGrow: 1 }}>
+          {activePage === "dashboard" && (
 
-          <Typography variant="h4" fontWeight="bold" mb={4}>
-            Home Page
-          </Typography>
+            <Typography variant="h4" fontWeight="bold" mb={4}>
+              Home Page
+            </Typography>
 
+          )}
 
+          {activePage === "customer" && token && <CustomerPage token={token} />}
+          {activePage === "suppliers" && token && <SuppliersPage token={token} />}
+          {activePage === "product" && token && <ProductPage token={token} />}
+          {activePage === "batch" && token && <BatchPage token={token} />}
+          {activePage === "orders" && token && <OrdersPage token={token} />}
 
-
-        )}
-
-        {activePage === "customer" && token && <CustomerPage token={token} />}
-        {activePage === "suppliers" && token && <SuppliersPage token={token} />}
-        {activePage === "product" && token && <ProductPage token={token} />}
-        {activePage === "batch" && token && <BatchPage token={token} />}
-        {activePage === "orders" && token && <OrdersPage token={token} />}
-
+        </Box>
       </Box>
     </Box>
   );

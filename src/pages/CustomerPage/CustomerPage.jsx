@@ -59,44 +59,55 @@ export default function CustomerPage({ token }) {
 
   const ownerName = localStorage.getItem("ownerName");
   const businessId = localStorage.getItem("businessId");
-
-  console.log("businessId:", businessId);
-  console.log("token:", token);
-  console.log("ownerName:", ownerName);
-
+  
   const loadCustomers = async () => {
-    if (!businessId) return;
-
     try {
-      setLoading(true);
-
       const res = await axios.get(
         `http://localhost:8080/api/customers/business/${businessId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-      const data = res.data;
-      setCustomers(Array.isArray(data) ? data : []);
-
+      setCustomers(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
-      console.error("Failed to load customers", err);
+      console.error(err);
       setCustomers([]);
-    } finally {
-      setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (token && businessId) {
-      loadCustomers();
-    }
+    if (token && businessId) loadCustomers();
   }, [token, businessId]);
 
-  const filteredCustomers = customers.filter(c =>
-    c?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c?.phone?.includes(searchTerm)
-  );
+  const searchCustomerByPhone = async () => {
+    if (!searchTerm.trim()) {
+      loadCustomers(); // load all if empty
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const res = await axios.post(
+        "http://localhost:8080/api/customers/phoneNumber",
+        {
+          phoneNumber: searchTerm,
+          businessId: parseInt(businessId),
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      setCustomers(Array.isArray(res.data) ? res.data : [res.data]);
+
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Customer not found",
+        confirmButtonColor: "#8b29f4ff",
+      });
+    }
+  };
 
   const submitAddCustomer = async () => {
     try {
@@ -198,7 +209,7 @@ export default function CustomerPage({ token }) {
 
       <Dialog open={showAddModal} onClose={() => setShowAddModal(false)}>
         <DialogTitle sx={{ bgcolor: "#8b29f4ff", color: "#fff" }}>Add Customer</DialogTitle>
-        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400,mt:2 }}>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400, mt: 2}}>
           <TextField label="Name" value={newCustomer.name} onChange={e => setNewCustomer(prev => ({ ...prev, name: e.target.value }))} />
           <TextField label="Phone" value={newCustomer.phone} onChange={e => setNewCustomer(prev => ({ ...prev, phone: e.target.value }))} />
         </DialogContent>
@@ -229,12 +240,12 @@ export default function CustomerPage({ token }) {
         </DialogActions>
       </Dialog>
 
-      <Box sx={{ minHeight: "100vh", bgcolor: "#f9fafb"}}>
+      <Box sx={{ minHeight: "100vh", bgcolor: "#f9fafb" }}>
 
         <Box sx={{ maxWidth: "100%", mx: "auto", px: 2, mt: 4 }}>
           <TextField
             fullWidth
-            placeholder="Search customers by name or phone..."
+            placeholder="Search customers by phone..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             InputProps={{
@@ -246,19 +257,41 @@ export default function CustomerPage({ token }) {
             }}
             sx={{ mb: 3 }}
           />
+          <Button
+            variant="contained"
+            onClick={searchCustomerByPhone}
+            sx={{
+              mb: 3,
+              bgcolor: "#8b29f4ff",
+              fontWeight: "bold",
+              px: 4,
+              "&:hover": {
+                bgcolor: "#6f1edb",
+              },
+            }}
+          >
+            Search
+          </Button>
 
-          {filteredCustomers.length > 0 ? (
+          {customers.length > 0 ? (
             <TableContainer component={Paper}>
               <Table>
                 <TableHead sx={{ bgcolor: "#8b29f4ff" }}>
                   <TableRow>
-                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}><b>Name</b></TableCell>
-                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}><b>Phone</b></TableCell>
-                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}><b>Action</b></TableCell>
+                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>
+                      <b>Name</b>
+                    </TableCell>
+                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>
+                      <b>Phone</b>
+                    </TableCell>
+                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>
+                      <b>Action</b>
+                    </TableCell>
                   </TableRow>
                 </TableHead>
+
                 <TableBody>
-                  {filteredCustomers.map(customer => (
+                  {customers.map(customer => (
                     <TableRow
                       key={customer.id}
                       hover
@@ -277,6 +310,7 @@ export default function CustomerPage({ token }) {
                         >
                           <Edit />
                         </IconButton>
+
                         <IconButton
                           color="error"
                           onClick={(e) => {
@@ -303,6 +337,7 @@ export default function CustomerPage({ token }) {
               </Typography>
             </Paper>
           )}
+
         </Box>
 
         <Dialog
