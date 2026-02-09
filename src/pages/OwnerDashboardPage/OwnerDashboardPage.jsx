@@ -42,6 +42,7 @@ import {
   TableRow,
   Paper,
 } from "@mui/material";
+import axios from "axios";
 
 import {
   Box,
@@ -63,6 +64,13 @@ export default function OwnerDashboardPage() {
   const [ownerName, setOwnerName] = useState("");
   const [open, setOpen] = useState(true);
 
+  const [customerCount, setCustomerCount] = useState([]);
+  const [supplierCount, setSupplierCount] = useState([]);
+  const [productCount, setProductCount] = useState([]);
+  const [batchCount, setBatchCount] = useState([]);
+  const [orderCount, setOrderCount] = useState([]);
+
+
   const fetchOwnerName = () => {
     const name = localStorage.getItem("ownerName");
     setOwnerName(name);
@@ -82,6 +90,14 @@ export default function OwnerDashboardPage() {
     navigate("/");
   };
 
+  const stats = [
+    { label: "Customers", value: customerCount },
+    { label: "Suppliers", value: supplierCount },
+    { label: "Products", value: productCount },
+    { label: "Batches", value: batchCount },
+    { label: "Orders", value: orderCount },
+  ];
+
   const menuItems = [
     { id: "dashboard", icon: <Home />, label: "Home" },
     { id: "customer", icon: <People />, label: "Customers" },
@@ -90,6 +106,119 @@ export default function OwnerDashboardPage() {
     { id: "batch", icon: <Category />, label: "Batch" },
     { id: "orders", icon: <ReceiptLong />, label: "Orders" },
   ];
+
+  const loadCustomers = async () => {
+    try {
+      const res = await axios.get(
+        "http://localhost:8080/api/customers",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      setCustomerCount(res.data.length);
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Failed to load customers",
+        text: "Please try again later",
+      });
+    }
+  };
+
+  const loadSuppliers = async () => {
+    try {
+      const res = await axios.get(
+        "http://localhost:8080/api/v1/bizsuppler",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      setSupplierCount(res.data.length);
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Error fetching suppliers",
+        text: "Please try again later",
+      });
+
+    }
+  };
+
+  const loadProducts = async () => {
+    try {
+      const res = await axios.get(
+        "http://localhost:8080/api/v1/products",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      setProductCount(res.data.length);
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Error fetching products",
+        text: "Please try again later",
+      });
+
+    }
+  };
+
+  const loadBatches = async () => {
+    try {
+      const res = await axios.get(
+        "http://localhost:8080/api/v1/batches",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      setBatchCount(res.data.length);
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Error fetching batch",
+        text: "Please try again later",
+      });
+
+    }
+  };
+
+  const loadOrders = async () => {
+    try {
+      const res = await axios.get(
+        "http://localhost:8080/api/v1/orders",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      setOrderCount(res.data.length);
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Error fetching orders",
+        text: "Please try again later",
+      });
+
+    }
+  };
+
+  useEffect(() => {
+    loadCustomers();
+    loadSuppliers();
+    loadProducts();
+    loadBatches();
+    loadOrders();
+  }, []);
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#f3f4f6" }}>
@@ -163,13 +292,39 @@ export default function OwnerDashboardPage() {
       >
 
         <Box sx={{ p: 4, flexGrow: 1 }}>
+
           {activePage === "dashboard" && (
+            <>
+              <Typography variant="h4" fontWeight="bold" mb={4}>
+                Home Page
+              </Typography>
 
-            <Typography variant="h4" fontWeight="bold" mb={4}>
-              Home Page
-            </Typography>
-
+              <Grid container spacing={4}>
+                {stats.map((s, i) => (
+                  <Grid item xs={12} sm={6} md={4} lg={2.4} key={i}>
+                    <Card
+                      sx={{
+                        width: 150,
+                        borderTop: "6px solid #8b29f4ff",
+                        boxShadow: 10,
+                        borderRadius: 3,
+                      }}
+                    >
+                      <CardContent>
+                        <Typography variant="body2" color="text.secondary">
+                          {s.label}
+                        </Typography>
+                        <Typography variant="h4" fontWeight="bold">
+                          {s.value}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            </>
           )}
+
 
           {activePage === "customer" && token && <CustomerPage token={token} />}
           {activePage === "suppliers" && token && <SuppliersPage token={token} />}

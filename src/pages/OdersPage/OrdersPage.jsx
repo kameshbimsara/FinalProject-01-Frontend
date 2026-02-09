@@ -7,13 +7,7 @@ import {
   Card,
   CardContent,
   Grid,
-  Divider
-} from "@mui/material";
-import { IconButton, Chip } from "@mui/material";
-import { ReceiptLong } from "@mui/icons-material";
-import axios from "axios";
-import Swal from "sweetalert2";
-import {
+  Divider,
   Table,
   TableBody,
   TableCell,
@@ -21,9 +15,13 @@ import {
   TableHead,
   TableRow,
   Paper,
+  Chip,
+  IconButton,
+  Dialog,
 } from "@mui/material";
-
-
+import { ReceiptLong } from "@mui/icons-material";
+import axios from "axios";
+import Swal from "sweetalert2";
 
 export default function OrdersPage({ token }) {
   const [view, setView] = useState("add");
@@ -32,9 +30,13 @@ export default function OrdersPage({ token }) {
   const [customer, setCustomer] = useState("");
   const [customerInfo, setCustomerInfo] = useState(null);
   const [loadingCustomer, setLoadingCustomer] = useState(false);
-  const [items, setItems] = useState([{ product: "", quantity:0, price: 0 }]);
+  const [items, setItems] = useState([{ product: "", quantity: 0, price: 0 }]);
   const [customerPhoneMap, setCustomerPhoneMap] = useState({});
   const [product, setProduct] = useState("");
+  const [searchDate, setSearchDate] = useState("");
+  const [openDialog, setOpenDialog] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [productMap, setProductMap] = useState({});
 
   const totalAmount = items.reduce((sum, item) => sum + item.quantity * item.price, 0);
 
@@ -199,29 +201,6 @@ export default function OrdersPage({ token }) {
     },
   };
 
-
-  const loadOrders = async () => {
-    try {
-      const res = await axios.get(
-        "http://localhost:8080/api/v1/orders",
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      setOrders(res.data);
-    } catch (err) {
-      Swal.fire({
-        icon: "error",
-        title: "Failed to load orders",
-        text: "Could not fetch orders from server",
-      });
-    }
-  };
-
-
   const loadCustomers = async () => {
     try {
       const res = await axios.get(
@@ -233,7 +212,6 @@ export default function OrdersPage({ token }) {
         }
       );
 
-      // Build ID → phone map
       const map = {};
       res.data.forEach(customer => {
         map[customer.id] = customer.phone;
@@ -249,7 +227,7 @@ export default function OrdersPage({ token }) {
     }
   };
 
-   const loadProducts = async () => {
+  const loadProducts = async () => {
     try {
       const res = await axios.get(
         "http://localhost:8080/api/v1/products",
@@ -264,8 +242,8 @@ export default function OrdersPage({ token }) {
       res.data.forEach(product => {
         map[product.id] = product.name;
       });
+      setProductMap(map);
 
-      setProduct(map);
     } catch (err) {
       Swal.fire({
         icon: "error",
@@ -275,31 +253,60 @@ export default function OrdersPage({ token }) {
     }
   };
 
+  const searchOrdersByDate = async () => {
+    if (!searchDate) {
+      Swal.fire({
+        icon: "warning",
+        title: "Select a date",
+        text: "Please choose a date to search orders",
+      });
+      return;
+    }
+
+    try {
+      const res = await axios.post(
+        "http://localhost:8080/api/v1/orders/orderDate",
+        {
+          date: searchDate,
+          businessId: businessId
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      setOrders(res.data);
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Search failed",
+        text: "No orders found for selected date",
+      });
+    }
+  };
 
   useEffect(() => {
     if (view === "view") {
-      loadOrders();
       loadCustomers();
-    }else{
-      (view === "details")
-      loadOrders();
       loadProducts();
     }
   }, [view]);
 
-  const orderDetails = orders.flatMap(order =>
-    (order.orderDetails || []).map(detail => ({
-      id: detail.id,
-      orderId: order.id,
-      productId: detail.productId,
-      quantity: detail.quantity,
-      price: detail.price,
-    }))
-  );
+  const orderDetails = orders
+    .flatMap(order =>
+      (order.orderDetails || []).map(detail => ({
+        id: detail.id,
+        orderId: order.id,
+        productId: detail.productId,
+        quantity: detail.quantity,
+        price: detail.price,
+      }))
+    );
 
   return (
     <Box>
-      {/* HEADER */}
       <Box
         sx={{
           background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
@@ -314,13 +321,12 @@ export default function OrdersPage({ token }) {
           Welcome To My Orders Management!
         </Typography>
 
-        <Chip 
-        icon={<ReceiptLong />} 
-        label={`${orders.length} Orders`}
-        color="secondary" />
+        <Chip
+          icon={<ReceiptLong />}
+          label={`${orders.length} Orders`}
+          color="secondary" />
       </Box>
 
-      {/* TABS */}
       <Box sx={{ display: "flex", gap: 2, mt: 3, mb: 4 }}>
         <Button
           variant={view === "add" ? "contained" : "outlined"}
@@ -336,16 +342,8 @@ export default function OrdersPage({ token }) {
         >
           View Orders
         </Button>
-        <Button
-          variant={view === "details" ? "contained" : "outlined"}
-          onClick={() => setView("details")}
-          sx={buttonStyle}
-        >
-          View Order Details
-        </Button>
       </Box>
 
-      {/* ADD ORDER */}
       {view === "add" && (
         <Card>
           <CardContent>
@@ -479,25 +477,63 @@ export default function OrdersPage({ token }) {
               Orders List
             </Typography>
 
-            <TableContainer component={Paper}>
-              <Table>
-                <TableHead sx={{ bgcolor: "#8b29f4ff" }}>
-                  <TableRow>
-                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Order Date</TableCell>
-                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Total Amount</TableCell>
-                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Customer No</TableCell>
-                  </TableRow>
-                </TableHead>
+            <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
+              <TextField
+                type="date"
+                label="Order Date"
+                InputLabelProps={{ shrink: true }}
+                value={searchDate}
+                onChange={(e) => setSearchDate(e.target.value)}
+              />
 
-                <TableBody>
-                  {orders.length === 0 ? (
+              <Button
+                variant="contained"
+                sx={buttonStyle}
+                onClick={searchOrdersByDate}
+              >
+                Search
+              </Button>
+
+              <Button
+                variant="outlined"
+                sx={buttonStyle}
+                onClick={() => {
+                  setOrders([]);
+                  setSearchDate("");
+                }}
+              >
+                Reset
+              </Button>
+            </Box>
+
+            {orders.length === 0 ? (
+              <Typography align="center" color="text.secondary">
+                {searchDate
+                  ? "No orders found for this date."
+                  : "Please select a date to view orders."}
+              </Typography>
+            ) : (
+              <TableContainer component={Paper}>
+                <Table>
+                  <TableHead sx={{ bgcolor: "#8b29f4ff" }}>
                     <TableRow>
-                      <TableCell colSpan={3} align="center">
-                        No orders found
+                      <TableCell sx={{ color: "#fff", fontWeight: 600 }}>
+                        Order Date
+                      </TableCell>
+                      <TableCell sx={{ color: "#fff", fontWeight: 600 }}>
+                        Total Amount
+                      </TableCell>
+                      <TableCell sx={{ color: "#fff", fontWeight: 600 }}>
+                        Customer No
+                      </TableCell>
+                      <TableCell sx={{ color: "#fff", fontWeight: 600 }}>
+                        View Details
                       </TableCell>
                     </TableRow>
-                  ) : (
-                    orders.map((order) => (
+                  </TableHead>
+
+                  <TableBody>
+                    {orders.map((order) => (
                       <TableRow key={order.id}>
                         <TableCell>
                           {order.date
@@ -510,70 +546,56 @@ export default function OrdersPage({ token }) {
                             : order.totalAmount}
                         </TableCell>
                         <TableCell>{customerPhoneMap[order.customerId]}</TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-
-          </CardContent>
-        </Card>
-      )}
-
-      {view === "details" && (
-        <Card>
-          <CardContent>
-            <Typography variant="h6" mb={2}>
-              Order Details List
-            </Typography>
-
-            <TableContainer component={Paper}>
-              <Table>
-                <TableHead sx={{ bgcolor: "#8b29f4ff" }}>
-                  <TableRow>
-                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>
-                      Order ID
-                    </TableCell>
-                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>
-                      Product Name
-                    </TableCell>
-                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>
-                      Quantity
-                    </TableCell>
-                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>
-                      Unit Price
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-
-                <TableBody>
-                  {orderDetails.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={4} align="center">
-                        No order details found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    orderDetails.map((detail) => (
-                      <TableRow key={detail.id}>
-                        <TableCell>{detail.orderId}</TableCell>
-                        <TableCell>{product[detail.productId]}</TableCell>
-                        <TableCell>{detail.quantity}</TableCell>
                         <TableCell>
-                          {detail.price.toFixed(2)}
+                          <Button
+                            variant="contained"
+                            size="small"
+                            sx={buttonStyle}
+                            onClick={async () => {
+                              if (Object.keys(productMap).length === 0) {
+                                await loadProducts();
+                              }
+                              setSelectedOrder(order);
+                              setOpenDialog(true);
+                            }}
+                          >
+                            View
+                          </Button>
+
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
           </CardContent>
         </Card>
       )}
 
 
+
+      {selectedOrder && (
+        <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
+          <Card sx={{ m: 2, p: 2, borderRadius: 3 }}>
+            <Typography variant="h6" mb={2}>Order Details</Typography>
+            <Typography variant="subtitle1" mb={1}><b>Order Date:</b> {selectedOrder.date ? new Date(selectedOrder.date).toLocaleDateString() : "N/A"}</Typography>
+            <Typography variant="subtitle1" mb={2}><b>Total Amount:</b> {selectedOrder.totalAmount?.toFixed(2)}</Typography>
+            <Divider sx={{ my: 1 }} />
+
+            {(selectedOrder.orderDetails || []).map((detail, index) => (
+              <Box key={detail.id} sx={{ display: "flex", justifyContent: "space-between", mb: 1, p: 1, borderRadius: 2, backgroundColor: "rgba(139, 41, 244, 0.05)" }}>
+                <Typography>{index + 1}. {productMap[detail.productId] || "Product"}</Typography>
+                <Typography>Qty: {detail.quantity} | Price: {detail.price.toFixed(2)}</Typography>
+              </Box>
+            ))}
+
+            <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
+              <Button variant="outlined" sx={buttonStyle} onClick={() => setOpenDialog(false)}>Close</Button>
+            </Box>
+          </Card>
+        </Dialog>
+      )}
 
 
 
