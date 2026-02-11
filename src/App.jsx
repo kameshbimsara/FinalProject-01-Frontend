@@ -1,17 +1,19 @@
 import { Route, Routes } from 'react-router-dom';
-import './App.css'
-import AdminLoginPage from './pages/AdminLoginPage/AdminLoginPage';
-import HomePage from './pages/HomePage/HomePage';
+import AdminDashboardPage from './pages/AdminDashboardPage/AdminDashboardPage';
+import OwnerDashboardPage from './pages/OwnerDashboardPage/OwnerDashboardPage';
+import { BrowserRouter} from 'react-router-dom';
+import LoginPage from './pages/LoginPage/LoginPage';
 
 function App(){
   return( 
   
-    <Routes>
-      <Route path="/" element={<AdminLoginPage />} />
-      <Route path="/home" element={<HomePage />} />
-    </Routes>
-
-    
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<LoginPage />} />
+        <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
+        <Route path="/owner-dashboard" element={<OwnerDashboardPage />} />
+      </Routes>
+    </BrowserRouter>
 
   );
 }
