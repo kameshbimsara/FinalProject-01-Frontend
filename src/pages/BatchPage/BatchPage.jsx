@@ -23,7 +23,7 @@ import {
 } from "@mui/material";
 import Category from "@mui/icons-material/Category";
 import Swal from "sweetalert2";
-
+import { PRIMARY_COLOR, PRIMARY_GRADIENT } from "../../theme/color";
 
 export default function BatchPage({ token }) {
   const [search, setSearch] = useState("");
@@ -244,10 +244,8 @@ export default function BatchPage({ token }) {
                   sx={{
                     minWidth: 100,
                     height: 40,
-                    backgroundColor: "#a758fcff",
-                    "&:hover": {
-                      backgroundColor: "#8b29f4ff",
-                    }
+                    background: PRIMARY_GRADIENT,
+                    fontWeight:"bold",
                   }}
                 >
                   Search
@@ -335,10 +333,8 @@ export default function BatchPage({ token }) {
                 sx={{
                   width: "50%",
                   height: 40,
-                  backgroundColor: "#a758fcff",
-                  "&:hover": {
-                    backgroundColor: "#8b29f4ff",
-                  }
+                  background: PRIMARY_GRADIENT,
+                  fontWeight:"bold",
                 }}
               >
                 Add Batch
@@ -357,7 +353,7 @@ export default function BatchPage({ token }) {
 
             <TableContainer component={Paper}>
               <Table>
-                <TableHead sx={{ bgcolor: "#8b29f4ff" }}>
+                <TableHead sx={{ background: PRIMARY_GRADIENT }}>
                   <TableRow>
                     <TableCell sx={{ color: "#fff", fontWeight: 600 }}>ID</TableCell>
                     <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Product</TableCell>

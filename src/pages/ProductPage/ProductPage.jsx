@@ -9,6 +9,7 @@ import { Search, Edit, Delete, Inventory2 } from "@mui/icons-material";
 import axios from "axios";
 import Swal from "sweetalert2";
 import 'sweetalert2/dist/sweetalert2.min.css';
+import { PRIMARY_COLOR, PRIMARY_GRADIENT } from "../../theme/color";
 
 export default function ProductPage({ token }) {
   const [products, setProducts] = useState([]);
@@ -146,7 +147,6 @@ export default function ProductPage({ token }) {
 
   return (
     <Box>
-
       <Box
         sx={{
           background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
@@ -158,7 +158,6 @@ export default function ProductPage({ token }) {
           justifyContent: "space-between",
         }}
       >
-
         <Typography variant="h6">Welcome To My Product Managemant !</Typography>
 
         <Box sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 2 }}>
@@ -176,7 +175,7 @@ export default function ProductPage({ token }) {
 
       <Box sx={{ p: 4, position: "relative" }}>
         <Button variant="contained" onClick={() => setShowAddModal(true)}
-          sx={{ background: "#8b29f4", fontWeight: "bold", position: "absolute", top: 0, right: 0, mt: 2 }}>
+          sx={{ background: PRIMARY_GRADIENT, fontWeight: "bold", position: "absolute", top: 0, right: 0, mt: 2 }}>
           + Add Product
         </Button>
       </Box>
@@ -193,7 +192,7 @@ export default function ProductPage({ token }) {
       <Button
         variant="contained"
         onClick={searchProductByName}
-        sx={{ mb: 3, bgcolor: "#8b29f4", fontWeight: "bold" }}
+        sx={{ mb: 3, background: PRIMARY_GRADIENT, fontWeight: "bold" }}
       >
         Search
       </Button>
@@ -201,7 +200,7 @@ export default function ProductPage({ token }) {
       {products.length > 0 ? (
         <TableContainer component={Paper}>
           <Table>
-            <TableHead sx={{ bgcolor: "#8b29f4ff" }}>
+            <TableHead sx={{ background: PRIMARY_GRADIENT }}>
               <TableRow>
                 <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Name</TableCell>
                 <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Brand</TableCell>
@@ -232,7 +231,7 @@ export default function ProductPage({ token }) {
       )}
 
       <Dialog open={showAddModal} onClose={() => setShowAddModal(false)}>
-        <DialogTitle sx={{ bgcolor: "#8b29f4ff", color: "#fff" }}>Add Product</DialogTitle>
+        <DialogTitle sx={{ background: PRIMARY_GRADIENT, color: "#fff" }}>Add Product</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400, mt: 2 }}>
           <TextField label="Name" value={newProduct.name} onChange={e => setNewProduct(prev => ({ ...prev, name: e.target.value }))} />
           <TextField label="Brand" value={newProduct.brand} onChange={e => setNewProduct(prev => ({ ...prev, brand: e.target.value }))} />
@@ -240,12 +239,12 @@ export default function ProductPage({ token }) {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setShowAddModal(false)}>Cancel</Button>
-          <Button variant="contained" sx={{ bgcolor: "#8b29f4" }} onClick={submitAddProduct}>Save</Button>
+          <Button variant="contained" sx={{ background: PRIMARY_GRADIENT }} onClick={submitAddProduct}>Save</Button>
         </DialogActions>
       </Dialog>
 
       <Dialog open={showEditModal} onClose={() => setShowEditModal(false)}>
-        <DialogTitle sx={{ bgcolor: "#8b29f4ff", color: "#fff" }}>Edit Product</DialogTitle>
+        <DialogTitle sx={{ background: PRIMARY_GRADIENT, color: "#fff" }}>Edit Product</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400 }}>
           <TextField sx={{ mt: 2 }} label="Name" value={editProduct.name} onChange={e => setEditProduct(prev => ({ ...prev, name: e.target.value }))} />
           <TextField label="Brand" value={editProduct.brand} onChange={e => setEditProduct(prev => ({ ...prev, brand: e.target.value }))} />
@@ -253,7 +252,7 @@ export default function ProductPage({ token }) {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setShowEditModal(false)}>Cancel</Button>
-          <Button variant="contained" sx={{ bgcolor: "#8b29f4" }} onClick={submitEditProduct}>Save</Button>
+          <Button variant="contained" sx={{ background: PRIMARY_GRADIENT }} onClick={submitEditProduct}>Save</Button>
         </DialogActions>
       </Dialog>
     </Box>

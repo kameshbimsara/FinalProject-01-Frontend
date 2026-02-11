@@ -41,6 +41,7 @@ import {
 import axios from "axios";
 import Swal from "sweetalert2";
 import 'sweetalert2/dist/sweetalert2.min.css';
+import { PRIMARY_COLOR, PRIMARY_GRADIENT } from "../../theme/color";
 
 export default function CustomerPage({ token }) {
 
@@ -79,7 +80,7 @@ export default function CustomerPage({ token }) {
 
   const searchCustomerByPhone = async () => {
     if (!searchTerm.trim()) {
-      loadCustomers(); // load all if empty
+      loadCustomers();
       return;
     }
 
@@ -201,26 +202,26 @@ export default function CustomerPage({ token }) {
 
       <Box sx={{ p: 4 }}>
         <Button variant="contained" onClick={() => setShowAddModal(true)}
-          sx={{ background: "#8b29f4ff", fontWeight: 'bold', position: 'absolute', top: 120, right: 40 }}>
+          sx={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", fontWeight: 'bold', position: 'absolute', top: 150, right: 70 }}>
           + Add Customer
         </Button>
       </Box>
 
 
       <Dialog open={showAddModal} onClose={() => setShowAddModal(false)}>
-        <DialogTitle sx={{ bgcolor: "#8b29f4ff", color: "#fff" }}>Add Customer</DialogTitle>
+        <DialogTitle sx={{ background:PRIMARY_GRADIENT, color: "#fff" }}>Add Customer</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400, mt: 2}}>
           <TextField label="Name" value={newCustomer.name} onChange={e => setNewCustomer(prev => ({ ...prev, name: e.target.value }))} />
           <TextField label="Phone" value={newCustomer.phone} onChange={e => setNewCustomer(prev => ({ ...prev, phone: e.target.value }))} />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setShowAddModal(false)} sx={{ color: "#8b29f4ff" }}>Cancel</Button>
-          <Button variant="contained" sx={{ bgcolor: "#8b29f4ff" }} onClick={submitAddCustomer}>Save</Button>
+          <Button onClick={() => setShowAddModal(false)} sx={{ color: PRIMARY_COLOR }}>Cancel</Button>
+          <Button variant="contained" sx={{ background: PRIMARY_GRADIENT }} onClick={submitAddCustomer}>Save</Button>
         </DialogActions>
       </Dialog>
 
       <Dialog open={showEditModal} onClose={() => setShowEditModal(false)}>
-        <DialogTitle sx={{ bgcolor: "#8b29f4ff", color: "#fff" }}>Edit Customer</DialogTitle>
+        <DialogTitle sx={{ background: PRIMARY_GRADIENT, color: "#fff" }}>Edit Customer</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400 }}>
           <TextField
             sx={{ mt: 2 }}
@@ -235,8 +236,8 @@ export default function CustomerPage({ token }) {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setShowEditModal(false)} sx={{ color: "#8b29f4ff" }}>Cancel</Button>
-          <Button variant="contained" sx={{ bgcolor: "#8b29f4ff" }} onClick={submitEditCustomer}>Save</Button>
+          <Button onClick={() => setShowEditModal(false)} sx={{ color: PRIMARY_GRADIENT }}>Cancel</Button>
+          <Button variant="contained" sx={{ background: PRIMARY_GRADIENT }} onClick={submitEditCustomer}>Save</Button>
         </DialogActions>
       </Dialog>
 
@@ -262,12 +263,9 @@ export default function CustomerPage({ token }) {
             onClick={searchCustomerByPhone}
             sx={{
               mb: 3,
-              bgcolor: "#8b29f4ff",
+              background: PRIMARY_GRADIENT,
               fontWeight: "bold",
               px: 4,
-              "&:hover": {
-                bgcolor: "#6f1edb",
-              },
             }}
           >
             Search
@@ -276,7 +274,7 @@ export default function CustomerPage({ token }) {
           {customers.length > 0 ? (
             <TableContainer component={Paper}>
               <Table>
-                <TableHead sx={{ bgcolor: "#8b29f4ff" }}>
+                <TableHead sx={{ background: PRIMARY_GRADIENT }}>
                   <TableRow>
                     <TableCell sx={{ color: "#fff", fontWeight: 600 }}>
                       <b>Name</b>

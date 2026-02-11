@@ -54,6 +54,8 @@ import {
   Card,
   CardContent
 } from "@mui/material";
+import { PRIMARY_COLOR, PRIMARY_GRADIENT } from "../../theme/color";
+import { blue } from "@mui/material/colors";
 
 const drawerWidth = 288;
 
@@ -70,6 +72,7 @@ export default function OwnerDashboardPage() {
   const [batchCount, setBatchCount] = useState([]);
   const [orderCount, setOrderCount] = useState([]);
 
+  const businessId = localStorage.getItem("businessId");
 
   const fetchOwnerName = () => {
     const name = localStorage.getItem("ownerName");
@@ -94,8 +97,6 @@ export default function OwnerDashboardPage() {
     { label: "Customers", value: customerCount },
     { label: "Suppliers", value: supplierCount },
     { label: "Products", value: productCount },
-    { label: "Batches", value: batchCount },
-    { label: "Orders", value: orderCount },
   ];
 
   const menuItems = [
@@ -304,19 +305,23 @@ export default function OwnerDashboardPage() {
                   <Grid item xs={12} sm={6} md={4} lg={2.4} key={i}>
                     <Card
                       sx={{
-                        width: 150,
+                        width: 250,
                         borderTop: "6px solid #8b29f4ff",
                         boxShadow: 10,
                         borderRadius: 3,
                       }}
                     >
                       <CardContent>
-                        <Typography variant="body2" color="text.secondary">
-                          {s.label}
-                        </Typography>
-                        <Typography variant="h4" fontWeight="bold">
-                          {s.value}
-                        </Typography>
+                        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+                          <Typography fontSize="1.5rem" variant="body2" color="text.secondary">
+                            {s.label}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+                          <Typography variant="h4" fontWeight="bold">
+                            {s.value}
+                          </Typography>
+                        </Box>
                       </CardContent>
                     </Card>
                   </Grid>

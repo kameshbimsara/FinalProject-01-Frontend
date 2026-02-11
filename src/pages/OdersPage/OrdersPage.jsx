@@ -22,28 +22,33 @@ import {
 import { ReceiptLong } from "@mui/icons-material";
 import axios from "axios";
 import Swal from "sweetalert2";
+import { PRIMARY_COLOR, PRIMARY_GRADIENT } from "../../theme/color";
 
 export default function OrdersPage({ token }) {
   const [view, setView] = useState("add");
   const [orders, setOrders] = useState(JSON.parse(localStorage.getItem("orders")) || []);
-  const businessId = Number(localStorage.getItem("businessId"));
   const [customer, setCustomer] = useState("");
   const [customerInfo, setCustomerInfo] = useState(null);
   const [loadingCustomer, setLoadingCustomer] = useState(false);
-  const [items, setItems] = useState([{ product: "", quantity: 0, price: 0 }]);
   const [customerPhoneMap, setCustomerPhoneMap] = useState({});
-  const [product, setProduct] = useState("");
   const [searchDate, setSearchDate] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [productMap, setProductMap] = useState({});
+  const [productDataMap, setProductDataMap] = useState({});
+  const [searchPhone, setSearchPhone] = useState("");
+  const [searchOrderId, setSearchOrderId] = useState("");
 
-  const totalAmount = items.reduce((sum, item) => sum + item.quantity * item.price, 0);
+  const businessId = Number(localStorage.getItem("businessId"));
+
+  const [items, setItems] = useState([{ productId: "", quantity: "", price: 0, productName: "" }]);
+
+  const totalAmount = items
+    .filter(item => item.quantity > 0 && item.price > 0)
+    .reduce((sum, item) => sum + item.quantity * item.price, 0);
 
   useEffect(() => {
     localStorage.setItem("orders", JSON.stringify(orders));
   }, [orders]);
-
 
   const fetchCustomer = async () => {
     if (!customer) {
@@ -55,7 +60,6 @@ export default function OrdersPage({ token }) {
       });
       return;
     }
-
     try {
       setLoadingCustomer(true);
 
@@ -86,9 +90,8 @@ export default function OrdersPage({ token }) {
     }
   };
 
-
   const addItem = () => {
-    setItems([...items, { product: "", quantity: 0, price: 0 }]);
+    setItems([...items, { productId: "", quantity: 0, price: 0, productName: "" }]);
   };
 
   const removeItem = (index) => {
@@ -97,13 +100,18 @@ export default function OrdersPage({ token }) {
 
   const handleItemChange = (index, field, value) => {
     const updated = [...items];
-    updated[index][field] =
-      field === "product" ? value : parseFloat(value) || 0;
+    updated[index][field] = field === "productId" ? value : parseFloat(value) || 0;
     setItems(updated);
   };
 
-
   const createOrder = async () => {
+
+    const validItems = items.filter(item => item.quantity > 0 && item.price > 0 && item.productId);
+    if (validItems.length === 0) {
+      Swal.fire({ icon: 'warning', title: 'No valid items', text: 'Add items with available stock' });
+      return;
+    }
+
     if (!customerInfo) {
       Swal.fire({
         icon: "error",
@@ -123,31 +131,12 @@ export default function OrdersPage({ token }) {
       });
       return;
     }
-
-
     try {
-      const orderDetails = [];
-
-      for (const item of items) {
-        const productRes = await axios.post(
-          "http://localhost:8080/api/v1/products/productName",
-          {
-            productName: item.product,
-            businessId,
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        orderDetails.push({
-          productId: productRes.data.id,
-          quantity: item.quantity,
-          price: item.price,
-        });
-      }
+      const orderDetails = validItems.map(item => ({
+        productId: Number(item.productId),
+        quantity: item.quantity,
+        price: item.price,
+      }));
 
       const newOrder = {
         customerId: customerInfo.id,
@@ -184,20 +173,72 @@ export default function OrdersPage({ token }) {
     }
   };
 
+  const searchOrders = async () => {
+    try {
+      if (searchOrderId) {
+        const res = await axios.get(
+          `http://localhost:8080/api/v1/orders/${searchOrderId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        setOrders([res.data]);
+        return;
+      }
+
+      if (searchPhone) {
+        const res = await axios.post(
+          "http://localhost:8080/api/v1/orders/customerPhone",
+          {
+            customerPhone: searchPhone,
+            businessId,
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        setOrders(res.data);
+        return;
+      }
+
+      if (searchDate) {
+        const res = await axios.post(
+          "http://localhost:8080/api/v1/orders/orderDate",
+          { date: searchDate, businessId },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        setOrders(res.data);
+        return;
+      }
+
+      Swal.fire({
+        icon: "warning",
+        title: "No search criteria",
+        text: "Please enter Order ID, Customer Phone, or Date",
+      });
+
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Search failed",
+        text: "No orders found",
+      });
+    }
+  };
 
   const buttonStyle = {
-    borderColor: "#8b29f4ff",
-    color: "#8b29f4ff",
+    borderColor: PRIMARY_COLOR,
+    color: PRIMARY_COLOR,
+    fontWeight: "bold",
+
     "&:hover": {
-      borderColor: "#8b29f4ff",
-      backgroundColor: "rgba(139, 41, 244, 0.08)",
+      borderColor: PRIMARY_COLOR,
+      background: PRIMARY_GRADIENT,
+      color: "#fff"
     },
+
     "&.MuiButton-contained": {
-      backgroundColor: "#8b29f4ff",
+      background: PRIMARY_GRADIENT,
       color: "#fff",
-      "&:hover": {
-        backgroundColor: "#6f1fd1",
-      },
     },
   };
 
@@ -240,9 +281,12 @@ export default function OrdersPage({ token }) {
 
       const map = {};
       res.data.forEach(product => {
-        map[product.id] = product.name;
+        map[product.id] = {
+          name: product.name,
+          businessId: product.businessId
+        };
       });
-      setProductMap(map);
+      setProductDataMap(map);
 
     } catch (err) {
       Swal.fire({
@@ -253,46 +297,46 @@ export default function OrdersPage({ token }) {
     }
   };
 
-  const searchOrdersByDate = async () => {
-    if (!searchDate) {
-      Swal.fire({
-        icon: "warning",
-        title: "Select a date",
-        text: "Please choose a date to search orders",
-      });
-      return;
-    }
 
+  const fetchBatchesByProduct = async (productId, index) => {
     try {
-      const res = await axios.post(
-        "http://localhost:8080/api/v1/orders/orderDate",
-        {
-          date: searchDate,
-          businessId: businessId
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      const batchRes = await axios.get(
+        `http://localhost:8080/api/v1/batches/product/${productId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      setOrders(res.data);
-    } catch (err) {
-      Swal.fire({
-        icon: "error",
-        title: "Search failed",
-        text: "No orders found for selected date",
+      const availableBatches = batchRes.data.filter(
+        batch => batch.quantity > 0
+      );
+
+      if (availableBatches.length === 0) {
+        setItems(prev => {
+          const updated = [...prev];
+          updated[index].price = 0;
+          return updated;
+        });
+        return;
+      }
+
+      const soonestBatch = availableBatches.reduce((a, b) =>
+        new Date(a.expireDate) < new Date(b.expireDate) ? a : b
+      );
+
+      setItems(prev => {
+        const updated = [...prev];
+        updated[index].price = soonestBatch.unitPrice;
+        return updated;
       });
+
+    } catch (err) {
+      console.warn("Batch fetch failed", err);
     }
   };
 
   useEffect(() => {
-    if (view === "view") {
-      loadCustomers();
-      loadProducts();
-    }
-  }, [view]);
+    loadCustomers();
+    loadProducts();
+  }, []);
 
   const orderDetails = orders
     .flatMap(order =>
@@ -396,46 +440,108 @@ export default function OrdersPage({ token }) {
             {items.map((item, index) => (
               <Grid container spacing={2} mt={1} key={index}>
                 <Grid item xs={12} md={5}>
+
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Product ID"
+                    value={item.productId}
+                    onChange={(e) =>
+                      handleItemChange(index, "productId", e.target.value)
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+
+                        if (item.productId) {
+                          const product = productDataMap[item.productId];
+
+                          if (!product) {
+                            Swal.fire({
+                              icon: "error",
+                              title: "Invalid Product ID",
+                              text: "This product does not exist",
+                            });
+                            return;
+                          }
+
+                          if (product.businessId !== businessId) {
+                            Swal.fire({
+                              icon: "error",
+                              title: "Unauthorized Product",
+                              text: "This product does not belong to your business",
+                            });
+
+                            setItems(prev => {
+                              const updated = [...prev];
+                              updated[index] = {
+                                ...updated[index],
+                                productId: "",
+                                productName: "",
+                                price: 0,
+                                quantity: ""
+                              };
+                              return updated;
+                            });
+                            return;
+                          }
+
+                          fetchBatchesByProduct(item.productId, index);
+
+                          setItems(prev => {
+                            const updated = [...prev];
+                            updated[index].productName = product.name;
+                            return updated;
+                          });
+                        }
+
+                      }
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={6} md={3}>
                   <TextField
                     fullWidth
                     label="Product Name"
-                    value={item.product}
-                    onChange={(e) =>
-                      handleItemChange(index, "product", e.target.value)
-                    }
+                    value={item.productName}
                   />
                 </Grid>
-
                 <Grid item xs={6} md={2}>
                   <TextField
                     fullWidth
                     type="number"
                     label="Qty"
+                    disabled={!item.price}
                     value={item.quantity}
                     onChange={(e) =>
                       handleItemChange(index, "quantity", e.target.value)
                     }
                   />
                 </Grid>
-
                 <Grid item xs={6} md={3}>
                   <TextField
                     fullWidth
                     type="number"
-                    label="Price"
+                    label="Unit Price"
                     value={item.price}
-                    onChange={(e) =>
-                      handleItemChange(index, "price", e.target.value)
-                    }
+                    InputProps={{ readOnly: true }}
                   />
                 </Grid>
-
+                <Grid item xs={6} md={3}>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Total"
+                    value={(item.quantity * item.price || 0).toFixed(2)}
+                    InputProps={{ readOnly: true }}
+                  />
+                </Grid>
                 <Grid item xs={12} md={2}>
                   <Button
-                    color="error"
                     fullWidth
                     variant="outlined"
                     onClick={() => removeItem(index)}
+                    sx={buttonStyle}
                   >
                     Remove
                   </Button>
@@ -443,7 +549,7 @@ export default function OrdersPage({ token }) {
               </Grid>
             ))}
 
-            <Button onClick={addItem} sx={{ mt: 2, color: "#8b29f4ff" }}>
+            <Button onClick={addItem} sx={{ mt: 2, color: PRIMARY_COLOR }}>
               + Add Item
             </Button>
 
@@ -463,12 +569,11 @@ export default function OrdersPage({ token }) {
               sx={buttonStyle}
               disabled={!customerInfo}
             >
-              Create Order
+              Add Order
             </Button>
           </CardContent>
         </Card>
       )}
-
 
       {view === "view" && (
         <Card>
@@ -477,7 +582,7 @@ export default function OrdersPage({ token }) {
               Orders List
             </Typography>
 
-            <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
+            <Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap" }}>
               <TextField
                 type="date"
                 label="Order Date"
@@ -486,10 +591,23 @@ export default function OrdersPage({ token }) {
                 onChange={(e) => setSearchDate(e.target.value)}
               />
 
+              <TextField
+                label="Customer Phone"
+                value={searchPhone}
+                onChange={(e) => setSearchPhone(e.target.value)}
+              />
+
+              <TextField
+                label="Order ID"
+                type="number"
+                value={searchOrderId}
+                onChange={(e) => setSearchOrderId(e.target.value)}
+              />
+
               <Button
                 variant="contained"
                 sx={buttonStyle}
-                onClick={searchOrdersByDate}
+                onClick={searchOrders}
               >
                 Search
               </Button>
@@ -500,6 +618,8 @@ export default function OrdersPage({ token }) {
                 onClick={() => {
                   setOrders([]);
                   setSearchDate("");
+                  setSearchPhone("");
+                  setSearchOrderId("");
                 }}
               >
                 Reset
@@ -515,7 +635,7 @@ export default function OrdersPage({ token }) {
             ) : (
               <TableContainer component={Paper}>
                 <Table>
-                  <TableHead sx={{ bgcolor: "#8b29f4ff" }}>
+                  <TableHead sx={{ background: PRIMARY_GRADIENT }}>
                     <TableRow>
                       <TableCell sx={{ color: "#fff", fontWeight: 600 }}>
                         Order Date
@@ -552,8 +672,8 @@ export default function OrdersPage({ token }) {
                             size="small"
                             sx={buttonStyle}
                             onClick={async () => {
-                              if (Object.keys(productMap).length === 0) {
-                                await loadProducts();
+                              if (!Object.keys(productDataMap).length) {
+                                await loadProducts(); // make sure products are loaded
                               }
                               setSelectedOrder(order);
                               setOpenDialog(true);
@@ -561,7 +681,6 @@ export default function OrdersPage({ token }) {
                           >
                             View
                           </Button>
-
                         </TableCell>
                       </TableRow>
                     ))}
@@ -573,8 +692,6 @@ export default function OrdersPage({ token }) {
         </Card>
       )}
 
-
-
       {selectedOrder && (
         <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
           <Card sx={{ m: 2, p: 2, borderRadius: 3 }}>
@@ -585,7 +702,9 @@ export default function OrdersPage({ token }) {
 
             {(selectedOrder.orderDetails || []).map((detail, index) => (
               <Box key={detail.id} sx={{ display: "flex", justifyContent: "space-between", mb: 1, p: 1, borderRadius: 2, backgroundColor: "rgba(139, 41, 244, 0.05)" }}>
-                <Typography>{index + 1}. {productMap[detail.productId] || "Product"}</Typography>
+                <Typography>
+                  {productDataMap[detail.productId]?.name || "Product"}
+                </Typography>
                 <Typography>Qty: {detail.quantity} | Price: {detail.price.toFixed(2)}</Typography>
               </Box>
             ))}
@@ -596,9 +715,6 @@ export default function OrdersPage({ token }) {
           </Card>
         </Dialog>
       )}
-
-
-
     </Box>
   );
 }

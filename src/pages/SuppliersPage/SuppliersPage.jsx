@@ -9,6 +9,7 @@ import { Search, Edit, Delete, People, LocalShipping } from "@mui/icons-material
 import axios from "axios";
 import Swal from "sweetalert2";
 import 'sweetalert2/dist/sweetalert2.min.css';
+import { PRIMARY_COLOR, PRIMARY_GRADIENT } from "../../theme/color";
 
 export default function SupplierPage({ token }) {
   const [suppliers, setSuppliers] = useState([]);
@@ -185,7 +186,7 @@ export default function SupplierPage({ token }) {
 
       <Box sx={{ p: 4 }}>
         <Button variant="contained" onClick={() => setShowAddModal(true)}
-          sx={{ background: "#8b29f4ff", fontWeight: 'bold', position: 'absolute', top: 120, right: 40 }}>
+          sx={{ background: PRIMARY_GRADIENT, fontWeight: 'bold', position: 'absolute', top: 150, right: 70 }}>
           + Add Suppliers
         </Button>
       </Box>
@@ -204,12 +205,9 @@ export default function SupplierPage({ token }) {
         onClick={searchSupplierByPhone}
         sx={{
           mb: 3,
-          bgcolor: "#8b29f4ff",
+          background: PRIMARY_GRADIENT,
           fontWeight: "bold",
           px: 4,
-          "&:hover": {
-            bgcolor: "#6f1edb",
-          },
         }}
       >
         Search
@@ -218,7 +216,7 @@ export default function SupplierPage({ token }) {
       {suppliers.length > 0 ? (
         <TableContainer component={Paper}>
           <Table>
-            <TableHead sx={{ bgcolor: "#8b29f4ff" }}>
+            <TableHead sx={{ background: PRIMARY_GRADIENT }}>
               <TableRow>
                 <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Company Name</TableCell>
                 <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Contact No</TableCell>
@@ -247,19 +245,19 @@ export default function SupplierPage({ token }) {
       )}
 
       <Dialog open={showAddModal} onClose={() => setShowAddModal(false)}>
-        <DialogTitle sx={{ bgcolor: "#8b29f4ff", color: "#fff" }}>Add Supplier</DialogTitle>
+        <DialogTitle sx={{ background: PRIMARY_GRADIENT, color: "#fff" }}>Add Supplier</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400, mt: 2 }}>
           <TextField label="Company Name" value={newSupplier.companyName} onChange={e => setNewSupplier(prev => ({ ...prev, companyName: e.target.value }))} />
           <TextField label="Contact No" value={newSupplier.contactNo} onChange={e => setNewSupplier(prev => ({ ...prev, contactNo: e.target.value }))} />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setShowAddModal(false)}>Cancel</Button>
-          <Button variant="contained" sx={{ bgcolor: "#8b29f4" }} onClick={submitAddSupplier}>Save</Button>
+          <Button variant="contained" sx={{ background: PRIMARY_GRADIENT }} onClick={submitAddSupplier}>Save</Button>
         </DialogActions>
       </Dialog>
 
       <Dialog open={showEditModal} onClose={() => setShowEditModal(false)}>
-        <DialogTitle sx={{ bgcolor: "#8b29f4ff", color: "#fff" }}>Edit Supplier</DialogTitle>
+        <DialogTitle sx={{ background: PRIMARY_GRADIENT, color: "#fff" }}>Edit Supplier</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400 }}>
           <TextField
             sx={{ mt: 2 }}
@@ -270,7 +268,7 @@ export default function SupplierPage({ token }) {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setShowEditModal(false)}>Cancel</Button>
-          <Button variant="contained" sx={{ bgcolor: "#8b29f4" }} onClick={submitEditSupplier}>Save</Button>
+          <Button variant="contained" sx={{ background: PRIMARY_GRADIENT }} onClick={submitEditSupplier}>Save</Button>
         </DialogActions>
       </Dialog>
     </Box>
